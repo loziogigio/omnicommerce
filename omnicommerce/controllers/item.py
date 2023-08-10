@@ -1,27 +1,77 @@
 import frappe
+from omnicommerce.repository.BcartmagRepository import BcartmagRepository
+from omnicommerce.repository.DataRepository import DataRepository
 from datetime import datetime
 from frappe.utils.password import update_password
-from mymb_ecommerce.controllers.solr_crud import add_document_to_solr
+from omnicommerce.controllers.solr_crud import add_document_to_solr
 from bs4 import BeautifulSoup
 from slugify import slugify
 from datetime import datetime
 
 
-config = Configurations()
-
-
-
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def get_webiste_items(limit=None, time_laps=None, page=1,  filters=None, fetch_property=False, fetch_media=False , fetch_price=False):
+def get_website_items(item_codes=[], limit=None, time_laps=None, page=1, filters=None, fetch_property=False, fetch_media=False, fetch_price=False):
+    try:
+        if not item_codes or not isinstance(item_codes, list):
+            return {
+                "error": "Invalid or missing item codes.",
+                "data": [],
+                "count": 0
+            }
+
+        items_data = []
+
+        for item_code in item_codes:
+            try:
+                website_item = frappe.get_doc("Website Item", item_code)
+                uom = website_item.get("stock_uom");
+                item_data = {
+                    "data": website_item.as_dict(),
+                    "uom": uom
+                }
+                items_data.append(item_data)
+            except frappe.DoesNotExistError:
+                frappe.log_error(message=f"Item code {item_code} does not exist.", title="Website Item Not Found")
+                continue
+            except Exception as e:
+                frappe.log_error(message=f"An error occurred while fetching item code {item_code}: {str(e)}", title="Website Item Fetch Error")
+                continue
+
+        return {
+            "data": items_data,
+            "count": len(items_data)
+        }
+    except Exception as e:
+        frappe.log_error(message=f"An unexpected error occurred: {str(e)}", title="Unexpected Error in get_website_items")
+        return {
+            "error": "An unexpected error occurred. Please check the server logs for more details.",
+            "data": [],
+            "count": 0
+        }
+
+# @frappe.whitelist(allow_guest=True, methods=['POST'])
+# def get_website_items(limit=None, time_laps=None, page=1,  filters=None, fetch_property=False, fetch_media=False , fetch_price=False):
     
-    return {
-        "data": 'Hello world',
-        "count": 5
-    }
+#     item_code = "WEB-ITM-0001"
+
+#     # Use the item_code to fetch the Website item (Doctype) from Frappe
+#     website_item = frappe.get_doc("Website Item", item_code)
+    
+#     uom = frappe.db.get_value("Item", item_code, "stock_uom")
+    
+#     # Example response format
+#     response = {
+#         "data": website_item.as_dict(),
+#         "uom": uom,
+#         "count": 1
+#     }
+    
+#     return response
+
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def import_items_in_solr(limit=None, page=None, time_laps=None, filters=None, fetch_property=False, fetch_media=False , fetch_price=False):
-    items = get_webiste_items(limit=limit, page=page,time_laps=time_laps, filters=filters, fetch_property=fetch_property, fetch_media=fetch_media, fetch_price=fetch_price)
+def import_website_items_in_solr(item_codes=[], limit=None, page=None, time_laps=None, filters=None, fetch_property=False, fetch_media=False, fetch_price=False):
+    items = get_website_items(item_codes=item_codes, limit=limit, page=page, time_laps=time_laps, filters=filters, fetch_property=fetch_property, fetch_media=fetch_media, fetch_price=fetch_price)
 
     success_items = []
     failure_items = []
@@ -30,11 +80,11 @@ def import_items_in_solr(limit=None, page=None, time_laps=None, filters=None, fe
     for item in items["data"]:
         solr_document = transform_to_solr_document(item)
 
-        # LOGIC TO CHANGE BELOW
-        if solr_document is None or not item.get('properties') or not item.get('medias'):
-            sku = item.get('carti', "No code available")
+        if solr_document is None or not item['data'].get('properties') or not item['data'].get('medias'):
+            sku = item['data'].get('item_code', "No code available")
             skipped_items.append(sku)
-            frappe.log_error(f"Warning: Skipped Item in solr  SKU: {sku} , D: {solr_document['id']}  to Solr", f"Skipped document with SKU: {sku} due to missing slug or prices or properties or medias. {solr_document}")
+            solr_id = solr_document['id'] if solr_document else "No id available"
+            frappe.log_error(f"Warning: Skipped Item in solr  SKU: {sku} , D: {solr_id}  to Solr", f"Skipped document with SKU: {sku} due to missing slug or prices or properties or medias. {solr_document}")
             continue
 
         result = add_document_to_solr(solr_document)
@@ -42,7 +92,7 @@ def import_items_in_solr(limit=None, page=None, time_laps=None, filters=None, fe
             success_items.append(solr_document['sku'])
         else:
             failure_items.append(solr_document['sku'])
-            frappe.log_error(title=f"Error: Import Item in solr SKU: {solr_document['sku']} ID: {solr_document['id']} ", message=f"Failed to add document with SKU: {solr_document['sku']} to Solr. Reason: {result['reason']}" )
+            frappe.log_error(title=f"Error: Import Item in solr SKU: {solr_document['sku']} ID: {solr_document['id']} ", message=f"Failed to add document with SKU: {solr_document['sku']} to Solr. Reason: {result['reason']}")
 
     return {
         "data": {
@@ -56,8 +106,6 @@ def import_items_in_solr(limit=None, page=None, time_laps=None, filters=None, fe
             }
         }
     }
-
-
 
 
 def transform_to_solr_document(item):
