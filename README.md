@@ -1,6 +1,6 @@
 ## Omnicommerce
 
-Ecommerce Integration for Omnicomerce
+Ecommerce Integration for Omnicommerce
 
 #### License
 

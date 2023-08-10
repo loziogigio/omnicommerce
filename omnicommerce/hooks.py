@@ -1,7 +1,7 @@
 app_name = "omnicommerce"
 app_title = "Omnicommerce"
 app_publisher = "Crowdechain S.r.o"
-app_description = "Ecommerce Integration for Omnicomerce"
+app_description = "Ecommerce Integration for Omnicommerce"
 app_email = "developers@crowdechain.com"
 app_license = "MIT"
 # required_apps = []

@@ -3,7 +3,7 @@ name = "omnicommerce"
 authors = [
     { name = "Crowdechain S.r.o", email = "developers@crowdechain.com"}
 ]
-description = "Ecommerce Integration for Omnicomerce"
+description = "Ecommerce Integration for Omnicommerce"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
