@@ -7,40 +7,56 @@ from omnicommerce.controllers.solr_crud import add_document_to_solr
 from bs4 import BeautifulSoup
 from slugify import slugify
 from datetime import datetime
+# from erpnext.utilities.product import get_price
 
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def get_website_items(item_codes=[], limit=None, time_laps=None, page=1, filters=None, fetch_property=False, fetch_media=False, fetch_price=False):
+def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fetch_media=False, fetch_price=False, time_laps=None):
     try:
-        if not item_codes or not isinstance(item_codes, list):
+        if filters is None or not isinstance(filters, dict):
             return {
-                "error": "Invalid or missing item codes.",
+                "error": "Invalid or missing filters.",
                 "data": [],
                 "count": 0
             }
+        start = (page - 1) * int(limit) if limit else 0
+
+        # Initial fetch of all Website Items without any conditions
+        all_website_items = frappe.get_all("Website Item", fields=["*"], limit=limit, start=start)
+        
+        # Manually filtering based on the provided filters
+        filtered_website_items = []
+        for website_item in all_website_items:
+            is_match = True
+            for key, value in filters.items():
+                if not hasattr(website_item, key) or getattr(website_item, key) != value:
+                    is_match = False
+                    break
+
+            if is_match:
+                filtered_website_items.append(website_item)
+
 
         items_data = []
-
-        for item_code in item_codes:
-            try:
-                website_item = frappe.get_doc("Website Item", item_code)
-                uom = website_item.get("stock_uom");
-                item_data = {
-                    "data": website_item.as_dict(),
-                    "uom": uom
-                }
-                items_data.append(item_data)
-            except frappe.DoesNotExistError:
-                frappe.log_error(message=f"Item code {item_code} does not exist.", title="Website Item Not Found")
-                continue
-            except Exception as e:
-                frappe.log_error(message=f"An error occurred while fetching item code {item_code}: {str(e)}", title="Website Item Fetch Error")
-                continue
+        for website_item in filtered_website_items:
+            uom = website_item.get("stock_uom")
+            sku = website_item.get("item_code")
+            # price = get_price(sku)
+            slug = website_item.get("route")
+            website_item['uom'] = uom
+            website_item['sku'] = sku
+            website_item['slug'] = slug
+            website_item['price'] = price
+            item_data = {
+                "data": website_item,
+            }
+            items_data.append(item_data)
 
         return {
             "data": items_data,
             "count": len(items_data)
         }
+
     except Exception as e:
         frappe.log_error(message=f"An unexpected error occurred: {str(e)}", title="Unexpected Error in get_website_items")
         return {
@@ -49,29 +65,11 @@ def get_website_items(item_codes=[], limit=None, time_laps=None, page=1, filters
             "count": 0
         }
 
-# @frappe.whitelist(allow_guest=True, methods=['POST'])
-# def get_website_items(limit=None, time_laps=None, page=1,  filters=None, fetch_property=False, fetch_media=False , fetch_price=False):
-    
-#     item_code = "WEB-ITM-0001"
-
-#     # Use the item_code to fetch the Website item (Doctype) from Frappe
-#     website_item = frappe.get_doc("Website Item", item_code)
-    
-#     uom = frappe.db.get_value("Item", item_code, "stock_uom")
-    
-#     # Example response format
-#     response = {
-#         "data": website_item.as_dict(),
-#         "uom": uom,
-#         "count": 1
-#     }
-    
-#     return response
 
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def import_website_items_in_solr(item_codes=[], limit=None, page=None, time_laps=None, filters=None, fetch_property=False, fetch_media=False, fetch_price=False):
-    items = get_website_items(item_codes=item_codes, limit=limit, page=page, time_laps=time_laps, filters=filters, fetch_property=fetch_property, fetch_media=fetch_media, fetch_price=fetch_price)
+def import_website_items_in_solr(limit=None, page=None, time_laps=None, filters=None, fetch_property=False, fetch_media=False, fetch_price=False):
+    items = get_website_items(limit=limit, page=page, time_laps=time_laps, filters=filters, fetch_property=fetch_property, fetch_media=fetch_media, fetch_price=fetch_price)
 
     success_items = []
     failure_items = []
@@ -111,8 +109,8 @@ def import_website_items_in_solr(item_codes=[], limit=None, page=None, time_laps
 def transform_to_solr_document(item):
     prices = item.get('prices', None)
     properties = item.get('properties', [])
-    id =  item.get('oarti', None)
-    sku = item.get('carti', None)
+    id =  item.get('item_code', None)
+    sku = item.get('sku', None)
     
     properties_map = {property['property_id']: property['value'] for property in properties}
     name = properties_map.get('title_frontend', item.get('tarti', None))
