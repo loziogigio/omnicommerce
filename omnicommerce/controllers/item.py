@@ -137,7 +137,7 @@ def import_website_items_in_solr(limit=None, page=None, time_laps=None, filters=
 
 def transform_to_solr_document(item):
     prices = item['data'].get('prices', None)
-    id =  item['data'].get('item_code', None)
+    id =  item['data'].get('name', None)
     sku = item['data'].get('sku', None)
     name = item['data'].get('web_item_name', None)
     name = BeautifulSoup(name, 'html.parser').get_text() if name else None
@@ -155,8 +155,15 @@ def transform_to_solr_document(item):
     description = item['data'].get('description', None)
     description = BeautifulSoup(description, 'html.parser').get_text() if description else None
 
-    # brand = item['data'].get('brand', None)
-    images = [item['data'].get('website_image')]
+    brand = item['data'].get('brand', None)
+    slideshow = item['data'].get('slideshow', None)
+    uom = item['data'].get('uom', None)
+    stock_uom = item['data'].get('stock_uom', None)
+    item_group = item['data'].get('item_group', None)
+    published = item['data'].get('published', None)
+    naming_series = item['data'].get('naming_series', None)
+    thumbnail = [item['data'].get('thumbnail', None)]
+    images = [item['data'].get('website_image', None)]
     
 
     net_price = prices.get('net_price', 0)
@@ -218,7 +225,15 @@ def transform_to_solr_document(item):
         "discount": prices.get('discount', [None]*6),
         "discount_extra": prices.get('discount_extra', [None]*3),
         "pricelist_type": prices.get('pricelist_type', None),
-        "pricelist_code": prices.get('pricelist_code', None)
+        "pricelist_code": prices.get('pricelist_code', None),
+        "brand": brand,
+        "slideshow": slideshow,
+        "thumbnail": thumbnail,
+        "uom": uom,
+        "stock_uom": stock_uom,
+        "item_group": item_group,
+        "published": published,
+        "naming_series": naming_series,
     }
 
     return solr_document
