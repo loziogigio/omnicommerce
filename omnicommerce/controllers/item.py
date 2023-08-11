@@ -7,11 +7,16 @@ from omnicommerce.controllers.solr_crud import add_document_to_solr
 from bs4 import BeautifulSoup
 from slugify import slugify
 from datetime import datetime
-# from erpnext.utilities.product import get_price
+from erpnext.utilities.product import get_price
+from erpnext.e_commerce.doctype.e_commerce_settings.e_commerce_settings import (
+	get_shopping_cart_settings,
+	show_quantity_in_website,
+)
+from erpnext.e_commerce.shopping_cart.cart import _get_cart_quotation, _set_price_list
 
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fetch_media=False, fetch_price=False, time_laps=None):
+def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fetch_media=False, fetch_price=False, time_laps=None, skip_quotation_creation=False):
     try:
         if filters is None or not isinstance(filters, dict):
             return {
@@ -41,12 +46,36 @@ def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fe
         for website_item in filtered_website_items:
             uom = website_item.get("stock_uom")
             sku = website_item.get("item_code")
-            # price = get_price(sku)
+
+            cart_settings = get_shopping_cart_settings()
+            if not cart_settings.enabled:
+                # return settings even if cart is disabled
+                return frappe._dict({"product_info": {}, "cart_settings": cart_settings})
+
+            cart_quotation = frappe._dict()
+            if not skip_quotation_creation:
+                cart_quotation = _get_cart_quotation()
+
+            selling_price_list = (
+                cart_quotation.get("selling_price_list")
+                if cart_quotation
+                else _set_price_list(cart_settings, None)
+            )
+
+            price = {}
+            if cart_settings.show_price:
+                is_guest = frappe.session.user == "Guest"
+                # Show Price if logged in.
+                # If not logged in, check if price is hidden for guest.
+                if not is_guest or not cart_settings.hide_price_for_guest:
+                    price = get_price(
+                        sku, selling_price_list, cart_settings.default_customer_group, cart_settings.company
+                    )
             slug = website_item.get("route")
             website_item['uom'] = uom
             website_item['sku'] = sku
             website_item['slug'] = slug
-            website_item['price'] = price
+            website_item['prices'] = price
             item_data = {
                 "data": website_item,
             }
@@ -68,8 +97,8 @@ def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fe
 
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def import_website_items_in_solr(limit=None, page=None, time_laps=None, filters=None, fetch_property=False, fetch_media=False, fetch_price=False):
-    items = get_website_items(limit=limit, page=page, time_laps=time_laps, filters=filters, fetch_property=fetch_property, fetch_media=fetch_media, fetch_price=fetch_price)
+def import_website_items_in_solr(limit=None, page=None, time_laps=None, filters=None, fetch_property=False, fetch_media=False, fetch_price=False, skip_quotation_creation=False):
+    items = get_website_items(limit=limit, page=page, time_laps=time_laps, filters=filters, fetch_property=fetch_property, fetch_media=fetch_media, fetch_price=fetch_price ,skip_quotation_creation=skip_quotation_creation)
 
     success_items = []
     failure_items = []
@@ -78,7 +107,7 @@ def import_website_items_in_solr(limit=None, page=None, time_laps=None, filters=
     for item in items["data"]:
         solr_document = transform_to_solr_document(item)
 
-        if solr_document is None or not item['data'].get('properties') or not item['data'].get('medias'):
+        if solr_document is None or not item['data'].get('name') or not item['data'].get('website_image'):
             sku = item['data'].get('item_code', "No code available")
             skipped_items.append(sku)
             solr_id = solr_document['id'] if solr_document else "No id available"
@@ -107,33 +136,32 @@ def import_website_items_in_solr(limit=None, page=None, time_laps=None, filters=
 
 
 def transform_to_solr_document(item):
-    prices = item.get('prices', None)
-    properties = item.get('properties', [])
-    id =  item.get('item_code', None)
-    sku = item.get('sku', None)
-    
-    properties_map = {property['property_id']: property['value'] for property in properties}
-    name = properties_map.get('title_frontend', item.get('tarti', None))
+    prices = item['data'].get('prices', None)
+    id =  item['data'].get('item_code', None)
+    sku = item['data'].get('sku', None)
+    name = item['data'].get('web_item_name', None)
     name = BeautifulSoup(name, 'html.parser').get_text() if name else None
 
-    slug = "det/"+slugify(name + "-" + sku) if name and sku else None
+    # slug = "det/"+slugify(name + "-" + sku) if name and sku else None
+    slug = item['data'].get('slug', None)
     # If slug is None, return None to skip this item
     if slug is None or prices is None or id is None or sku is None:
         return None
     
-    short_description = properties_map.get('short_description', item.get('tarti_swebx', None))
+    short_description = item['data'].get('short_description', None)
     short_description = BeautifulSoup(short_description, 'html.parser').get_text() if short_description else None
-    description = properties_map.get('long_description', None)
+    web_long_description = item['data'].get('web_long_description', None)
+    web_long_description = BeautifulSoup(web_long_description, 'html.parser').get_text() if web_long_description else None
+    description = item['data'].get('description', None)
     description = BeautifulSoup(description, 'html.parser').get_text() if description else None
 
-    brand = properties_map.get('brand', None)
-    images = [item['path'] + '/' + item['filename'] for item in item.get('medias', [])]
-
+    # brand = item['data'].get('brand', None)
+    images = [item['data'].get('website_image')]
     
 
     net_price = prices.get('net_price', 0)
     net_price_with_vat = prices.get('net_price_with_vat', 0)
-    gross_price = prices.get('gross_price', 0)
+    gross_price = prices.get('price_list_rate', 0)
     gross_price_with_vat = prices.get('gross_price_with_vat', 0)
     availability = prices.get('availability', 0)
     is_promo = prices.get('is_promo', False)
