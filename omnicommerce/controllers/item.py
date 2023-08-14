@@ -1,5 +1,6 @@
 import frappe
 from datetime import datetime
+from frappe.model.db_query import DatabaseQuery
 from frappe.utils.password import update_password
 from omnicommerce.controllers.solr_crud import add_document_to_solr
 from bs4 import BeautifulSoup
@@ -38,7 +39,7 @@ def get_website_items(limit=None, page=1, filters=None, skip_quotation_creation=
 
         start = (page - 1) * int(limit) if limit else 0
 
-        filtered_website_items = frappe.get_all("Website Item", fields=["*"], limit=limit, start=start)
+        filtered_website_items = frappe.get_all("Website Item", fields=["*"], filters=filters, limit=limit, start=start)
         
         items_data = []
         for website_item in filtered_website_items:
@@ -163,25 +164,8 @@ def transform_to_solr_document(item):
     naming_series = solr_item.get('naming_series', None)
     thumbnail = [solr_item.get('thumbnail', None)]
     images = [solr_item.get('website_image', None)]
-    creation = solr_item.get('creation', None)
-    modified = solr_item.get('modified', None)
-    modified_by = solr_item.get('modified_by', None)
-    owner = solr_item.get('owner', None)
-    docstatus = solr_item.get('docstatus', None)
-    idx = solr_item.get('idx', None)
-    has_variants = solr_item.get('has_variants', None)
-    variant_of = solr_item.get('variant_of', None)
-    website_warehouse = solr_item.get('website_warehouse', None)
-    on_backorder = solr_item.get('on_backorder', None)
-    show_tabbed_section = solr_item.get('show_tabbed_section', None)
-    ranking = solr_item.get('ranking', None)
-    website_content = solr_item.get('website_content', None)
-    _user_tags = solr_item.get('_user_tags', None)
-    _comments = solr_item.get('_comments', None)
-    _assign = solr_item.get('_assign', None)
-    _liked_by = solr_item.get('_liked_by', None)
 
-    net_price = prices.get('net_price', 0)
+    net_price = prices.get('price_list_rate', 0)
     net_price_with_vat = prices.get('net_price_with_vat', 0)
     gross_price = prices.get('price_list_rate', 0)
     gross_price_with_vat = prices.get('gross_price_with_vat', 0)
@@ -228,8 +212,6 @@ def transform_to_solr_document(item):
         "discount_value":discount_value,
         "discount_percent":discount_percent,
         "slug": slug,
-        "synonymous": item.get('synonymous', None),
-        "synonymous_nostem": item.get('synonymous_nostem', None),
         "gross_price": gross_price,
         "gross_price_with_vat": gross_price_with_vat,
         "net_price": net_price,
@@ -253,30 +235,12 @@ def transform_to_solr_document(item):
         "pricelist_code": prices.get('pricelist_code', None),
         "brand": brand,
         "slideshow": slideshow,
-        "thumbnail": thumbnail,
+        "small_pictures": thumbnail,
         "uom": uom,
         "stock_uom": stock_uom,
         "item_group": item_group,
         "published": published,
         "naming_series": naming_series,
-        "creation": creation,
-        "modified": modified,
-        "modified_by": modified_by,
-        "owner": owner,
-        "docstatus": docstatus,
-        "idx": idx,
-        "has_variants": has_variants,
-        "variant_of": variant_of,
-        "website_warehouse": website_warehouse,
-        "on_backorder": on_backorder,
-        "show_tabbed_section": show_tabbed_section,
-        "ranking": ranking,
-        "website_content": website_content,
-        "_user_tags": _user_tags,
-        "_comments": _comments,
-        "_assign": _assign,
-        "naming_series": naming_series,
-        "_liked_by": _liked_by,
 
     }
 
