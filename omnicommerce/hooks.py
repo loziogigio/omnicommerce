@@ -154,9 +154,10 @@ app_license = "MIT"
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-#	"frappe.desk.doctype.event.event.get_events": "omnicommerce.event.get_events"
-# }
+override_whitelisted_methods = {
+	"mymb_ecommerce.mymb_b2c.solr_search.shop": "omnicommerce.controllers.solr_search.shop",
+    "mymb_ecommerce.mymb_b2c.solr_search.products" : "omnicommerce.controllers.solr_search.shop"
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
