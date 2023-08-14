@@ -1,6 +1,4 @@
 import frappe
-from omnicommerce.repository.BcartmagRepository import BcartmagRepository
-from omnicommerce.repository.DataRepository import DataRepository
 from datetime import datetime
 from frappe.utils.password import update_password
 from omnicommerce.controllers.solr_crud import add_document_to_solr
@@ -16,7 +14,7 @@ from erpnext.e_commerce.shopping_cart.cart import _get_cart_quotation, _set_pric
 
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fetch_media=False, fetch_price=False, time_laps=None, skip_quotation_creation=False):
+def get_website_items(limit=None, page=1, filters=None, skip_quotation_creation=False):
     try:
         if filters is None or not isinstance(filters, dict):
             return {
@@ -46,6 +44,7 @@ def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fe
         for website_item in filtered_website_items:
             uom = website_item.get("stock_uom")
             sku = website_item.get("item_code")
+            slug = website_item.get("route")
 
             cart_settings = get_shopping_cart_settings()
             if not cart_settings.enabled:
@@ -71,7 +70,7 @@ def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fe
                     price = get_price(
                         sku, selling_price_list, cart_settings.default_customer_group, cart_settings.company
                     )
-            slug = website_item.get("route")
+            
             website_item['uom'] = uom
             website_item['sku'] = sku
             website_item['slug'] = slug
@@ -97,8 +96,8 @@ def get_website_items(limit=None, page=1, filters=None, fetch_property=False, fe
 
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def import_website_items_in_solr(limit=None, page=None, time_laps=None, filters=None, fetch_property=False, fetch_media=False, fetch_price=False, skip_quotation_creation=False):
-    items = get_website_items(limit=limit, page=page, time_laps=time_laps, filters=filters, fetch_property=fetch_property, fetch_media=fetch_media, fetch_price=fetch_price ,skip_quotation_creation=skip_quotation_creation)
+def import_website_items_in_solr(limit=None, page=None, filters=None, skip_quotation_creation=False):
+    items = get_website_items(limit=limit, page=page, filters=filters, skip_quotation_creation=skip_quotation_creation)
 
     success_items = []
     failure_items = []
@@ -136,35 +135,51 @@ def import_website_items_in_solr(limit=None, page=None, time_laps=None, filters=
 
 
 def transform_to_solr_document(item):
-    prices = item['data'].get('prices', None)
-    id =  item['data'].get('name', None)
-    sku = item['data'].get('sku', None)
-    name = item['data'].get('web_item_name', None)
-    name = BeautifulSoup(name, 'html.parser').get_text() if name else None
+    solr_item=item['data']
 
-    # slug = "det/"+slugify(name + "-" + sku) if name and sku else None
-    slug = item['data'].get('slug', None)
+    prices = solr_item.get('prices', None)
+    id =  solr_item.get('name', None)
+    sku = solr_item.get('sku', None)
+    name = solr_item.get('web_item_name', None)
+    name = BeautifulSoup(name, 'html.parser').get_text() if name else None
+    slug = solr_item.get('slug', None)
     # If slug is None, return None to skip this item
     if slug is None or prices is None or id is None or sku is None:
         return None
     
-    short_description = item['data'].get('short_description', None)
+    short_description = solr_item.get('short_description', None)
     short_description = BeautifulSoup(short_description, 'html.parser').get_text() if short_description else None
-    web_long_description = item['data'].get('web_long_description', None)
+    web_long_description = solr_item.get('web_long_description', None)
     web_long_description = BeautifulSoup(web_long_description, 'html.parser').get_text() if web_long_description else None
-    description = item['data'].get('description', None)
+    description = solr_item.get('description', None)
     description = BeautifulSoup(description, 'html.parser').get_text() if description else None
 
-    brand = item['data'].get('brand', None)
-    slideshow = item['data'].get('slideshow', None)
-    uom = item['data'].get('uom', None)
-    stock_uom = item['data'].get('stock_uom', None)
-    item_group = item['data'].get('item_group', None)
-    published = item['data'].get('published', None)
-    naming_series = item['data'].get('naming_series', None)
-    thumbnail = [item['data'].get('thumbnail', None)]
-    images = [item['data'].get('website_image', None)]
-    
+    brand = solr_item.get('brand', None)
+    slideshow = solr_item.get('slideshow', None)
+    uom = solr_item.get('uom', None)
+    stock_uom = solr_item.get('stock_uom', None)
+    item_group = solr_item.get('item_group', None)
+    published = solr_item.get('published', None)
+    naming_series = solr_item.get('naming_series', None)
+    thumbnail = [solr_item.get('thumbnail', None)]
+    images = [solr_item.get('website_image', None)]
+    creation = solr_item.get('creation', None)
+    modified = solr_item.get('modified', None)
+    modified_by = solr_item.get('modified_by', None)
+    owner = solr_item.get('owner', None)
+    docstatus = solr_item.get('docstatus', None)
+    idx = solr_item.get('idx', None)
+    has_variants = solr_item.get('has_variants', None)
+    variant_of = solr_item.get('variant_of', None)
+    website_warehouse = solr_item.get('website_warehouse', None)
+    on_backorder = solr_item.get('on_backorder', None)
+    show_tabbed_section = solr_item.get('show_tabbed_section', None)
+    ranking = solr_item.get('ranking', None)
+    website_content = solr_item.get('website_content', None)
+    _user_tags = solr_item.get('_user_tags', None)
+    _comments = solr_item.get('_comments', None)
+    _assign = solr_item.get('_assign', None)
+    _liked_by = solr_item.get('_liked_by', None)
 
     net_price = prices.get('net_price', 0)
     net_price_with_vat = prices.get('net_price_with_vat', 0)
@@ -175,6 +190,11 @@ def transform_to_solr_document(item):
     is_best_promo = prices.get('is_best_promo', False)
     promo_price = prices.get('promo_price', 0)
     promo_price_with_vat = prices.get('promo_price_with_vat', 0)
+    price_list_rate = prices.get('price_list_rate', 0)
+    currency = prices.get('currency', 0)
+    formatted_price = prices.get('formatted_price', 0)
+    currency_symbol = prices.get('currency_symbol', 0)
+    formatted_price_sales_uom = prices.get('formatted_price_sales_uom', 0)
 
     discount_value = discount_percent = None
     if is_promo and gross_price_with_vat:
@@ -217,6 +237,11 @@ def transform_to_solr_document(item):
         "promo_code": prices.get('promo_code', None),
         "promo_price": promo_price,
         "promo_price_with_vat": promo_price_with_vat,
+        "price_list_rate": price_list_rate,
+        "currency": currency,
+        "formatted_price": formatted_price,
+        "currency_symbol": currency_symbol,
+        "formatted_price_sales_uom": formatted_price_sales_uom,
         "is_promo": is_promo,
         "is_best_promo": is_best_promo,
         "promo_title": prices.get('promo_title', None),
@@ -234,6 +259,25 @@ def transform_to_solr_document(item):
         "item_group": item_group,
         "published": published,
         "naming_series": naming_series,
+        "creation": creation,
+        "modified": modified,
+        "modified_by": modified_by,
+        "owner": owner,
+        "docstatus": docstatus,
+        "idx": idx,
+        "has_variants": has_variants,
+        "variant_of": variant_of,
+        "website_warehouse": website_warehouse,
+        "on_backorder": on_backorder,
+        "show_tabbed_section": show_tabbed_section,
+        "ranking": ranking,
+        "website_content": website_content,
+        "_user_tags": _user_tags,
+        "_comments": _comments,
+        "_assign": _assign,
+        "naming_series": naming_series,
+        "_liked_by": _liked_by,
+
     }
 
     return solr_document
