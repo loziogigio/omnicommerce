@@ -22,24 +22,24 @@ def get_website_items(limit=None, page=1, filters=None, skip_quotation_creation=
                 "data": [],
                 "count": 0
             }
+        
+        # Get the meta object for the "Website Item" DocType
+        meta = frappe.get_meta("Website Item")
+        field_keys = [field.fieldname for field in meta.fields]
+
+        # Validate the keys in the filters against the field names in the DocType
+        for key in filters.keys():
+            if key not in field_keys:
+                return {
+                    "error": f"Invalid filter key: {key}.",
+                    "data": [],
+                    "count": 0
+                }
+
         start = (page - 1) * int(limit) if limit else 0
 
-        # Initial fetch of all Website Items without any conditions
-        all_website_items = frappe.get_all("Website Item", fields=["*"], limit=limit, start=start)
+        filtered_website_items = frappe.get_all("Website Item", fields=["*"], limit=limit, start=start)
         
-        # Manually filtering based on the provided filters
-        filtered_website_items = []
-        for website_item in all_website_items:
-            is_match = True
-            for key, value in filters.items():
-                if not hasattr(website_item, key) or getattr(website_item, key) != value:
-                    is_match = False
-                    break
-
-            if is_match:
-                filtered_website_items.append(website_item)
-
-
         items_data = []
         for website_item in filtered_website_items:
             uom = website_item.get("stock_uom")
