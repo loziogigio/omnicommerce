@@ -20,9 +20,9 @@ image_uri_instance = config.get_image_uri_instance()
 @frappe.whitelist(allow_guest=True, methods=['GET'])
 def shop(args=None):
     # Call the catalogue function with the given arguments
-    return {
-        "data":"overidden" #to be removed
-    }
+    # return {
+    #     "data":"overidden" #to be removed
+    # }
     return catalogue(args)
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])

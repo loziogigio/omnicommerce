@@ -148,6 +148,15 @@ def transform_to_solr_document(item):
     if slug is None or prices is None or id is None or sku is None:
         return None
     
+    def get_stock_qty(solr_item):
+        try:
+            stock_qty = solr_item.stock_qty[0][0]
+        except (AttributeError, IndexError):
+            stock_qty = None
+        return stock_qty
+    solr_item = solr_item # Replace this with the actual object containing the stock_qty
+    stock = get_stock_qty(solr_item)
+        
     short_description = solr_item.get('short_description', None)
     short_description = BeautifulSoup(short_description, 'html.parser').get_text() if short_description else None
     web_long_description = solr_item.get('web_long_description', None)
@@ -164,6 +173,8 @@ def transform_to_solr_document(item):
     naming_series = solr_item.get('naming_series', None)
     thumbnail = [solr_item.get('thumbnail', None)]
     images = [solr_item.get('website_image', None)]
+    has_variants = solr_item.get('has_variants', None)
+    variant_of = solr_item.get('variant_of', None)
 
     net_price = prices.get('price_list_rate', 0)
     net_price_with_vat = prices.get('net_price_with_vat', 0)
@@ -203,7 +214,7 @@ def transform_to_solr_document(item):
         "description_nostem": description,
         "sku_father": item.get('sku_father', None),
         "num_images": len(images),
-        "images": images,
+        "website_image": images,
         "id_brand": item.get('id_brand', []),
         "id_father": item.get('id_father', None),
         "keywords": item.get('keywords', None),
@@ -241,6 +252,9 @@ def transform_to_solr_document(item):
         "item_group": item_group,
         "published": published,
         "naming_series": naming_series,
+        "has_variants": has_variants,
+        "variant_of": variant_of,
+        "stock": stock,
 
     }
 
