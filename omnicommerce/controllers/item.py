@@ -147,7 +147,8 @@ def transform_to_solr_document(item):
     web_long_description = parseHtmlText(solr_item.get('web_long_description', None))
     description = parseHtmlText(solr_item.get('description', None))
     owner = solr_item.get('owner', None)
-    release_date = solr_item.get('modified', None)
+    release_date_obj = solr_item.get('modified', None)
+    release_date = release_date_obj.strftime("%Y-%m-%dT%H:%M:%SZ") if release_date_obj else None
     ratings = solr_item.get('ranking', None)
     
 
