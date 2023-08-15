@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from slugify import slugify
 from datetime import datetime
 from erpnext.utilities.product import get_price
+from erpnext.e_commerce.shopping_cart.product_info import get_product_info_for_website
 from erpnext.e_commerce.doctype.e_commerce_settings.e_commerce_settings import (
 	get_shopping_cart_settings,
 	show_quantity_in_website,
@@ -17,74 +18,46 @@ from erpnext.e_commerce.shopping_cart.cart import _get_cart_quotation, _set_pric
 @frappe.whitelist(allow_guest=True, methods=['POST'])
 def get_website_items(limit=None, page=1, filters=None, skip_quotation_creation=False):
     try:
-        if filters is None or not isinstance(filters, dict):
-            return {
-                "error": "Invalid or missing filters.",
-                "data": [],
-                "count": 0
-            }
-        
         # Get the meta object for the "Website Item" DocType
         meta = frappe.get_meta("Website Item")
         field_keys = [field.fieldname for field in meta.fields]
+        field_keys.append('name') # Consider 'name' as a valid key
 
-        # Validate the keys in the filters against the field names in the DocType
-        for key in filters.keys():
-            if key not in field_keys:
-                return {
-                    "error": f"Invalid filter key: {key}.",
-                    "data": [],
-                    "count": 0
-                }
+        # Create a new dictionary with only the valid keys and values from the filters
+        valid_filters = {key: value for key, value in filters.items() if key in field_keys}
+         # Collect any non-valid keys
+        non_valid_keys = [key for key in filters.keys() if key not in field_keys]
+        warning_message = ''
+        if non_valid_keys:
+            warning_message = f"Warning: The following filter keys were ignored as they are not valid: {', '.join(non_valid_keys)}."
+
+
 
         start = (page - 1) * int(limit) if limit else 0
 
-        filtered_website_items = frappe.get_all("Website Item", fields=["*"], filters=filters, limit=limit, start=start)
+        filtered_website_items = frappe.get_all("Website Item", fields=["*"], filters=valid_filters, limit=limit, start=start)
         
         items_data = []
         for website_item in filtered_website_items:
-            uom = website_item.get("stock_uom")
-            sku = website_item.get("item_code")
-            slug = website_item.get("route")
-
-            cart_settings = get_shopping_cart_settings()
-            if not cart_settings.enabled:
-                # return settings even if cart is disabled
-                return frappe._dict({"product_info": {}, "cart_settings": cart_settings})
-
-            cart_quotation = frappe._dict()
-            if not skip_quotation_creation:
-                cart_quotation = _get_cart_quotation()
-
-            selling_price_list = (
-                cart_quotation.get("selling_price_list")
-                if cart_quotation
-                else _set_price_list(cart_settings, None)
-            )
-
-            price = {}
-            if cart_settings.show_price:
-                is_guest = frappe.session.user == "Guest"
-                # Show Price if logged in.
-                # If not logged in, check if price is hidden for guest.
-                if not is_guest or not cart_settings.hide_price_for_guest:
-                    price = get_price(
-                        sku, selling_price_list, cart_settings.default_customer_group, cart_settings.company
-                    )
-            
-            website_item['uom'] = uom
-            website_item['sku'] = sku
-            website_item['slug'] = slug
-            website_item['prices'] = price
-            item_data = {
-                "data": website_item,
+            product = get_product_info_for_website(item_code=website_item.item_code , skip_quotation_creation=False)
+            merged_data = {
+                **website_item,
+                **product
             }
-            items_data.append(item_data)
+            items_data.append(merged_data)
 
-        return {
+
+        result = {
             "data": items_data,
             "count": len(items_data)
         }
+        
+        # Add warning to result if warning_message is not empty
+        if warning_message:
+            result["warning"] = warning_message
+
+        return result
+
 
     except Exception as e:
         frappe.log_error(message=f"An unexpected error occurred: {str(e)}", title="Unexpected Error in get_website_items")
