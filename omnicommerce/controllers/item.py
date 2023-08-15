@@ -141,9 +141,10 @@ def transform_to_solr_document(item):
     description = BeautifulSoup(description, 'html.parser').get_text() if description else None
 
     brand = item['brand']
-    if item['website_image']:
+    images = []
+    if item.get('website_image'):
         images = item['website_image']
-    if item['slideshow_items']:
+    if item.get('slideshow_items'):
         images = [item['image'] for item in item['slideshow_items']]
 
 

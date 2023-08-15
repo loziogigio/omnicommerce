@@ -19,10 +19,6 @@ image_uri_instance = config.get_image_uri_instance()
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])
 def shop(args=None):
-    # Call the catalogue function with the given arguments
-    # return {
-    #     "data":"overidden" #to be removed
-    # }
     return catalogue(args)
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])
@@ -216,7 +212,7 @@ def map_solr_response_b2c(search_results ):
                 continue
             if solr_field == 'images':
                 # Map the image URLs
-                images = media.get_image_sizes(result)
+                images = media.get_image_sizes(result , prefix_thumb='',prefix_gallery='' ,prefix_main='')
                 mapped_result.update(images)
             else:
                 mapped_result[response_field] = result[solr_field]
