@@ -17,13 +17,6 @@ from erpnext.e_commerce.shopping_cart.cart import _get_cart_quotation, _set_pric
 @frappe.whitelist(allow_guest=True, methods=['POST'])
 def get_website_items(limit=None, page=1, filters=None, skip_quotation_creation=False):
     try:
-        if filters is None or not isinstance(filters, dict):
-            return {
-                "error": "Invalid or missing filters.",
-                "data": [],
-                "count": 0
-            }
-        
         # Get the meta object for the "Website Item" DocType
         meta = frappe.get_meta("Website Item")
         field_keys = [field.fieldname for field in meta.fields]
