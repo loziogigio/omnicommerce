@@ -156,7 +156,7 @@ app_license = "MIT"
 #
 override_whitelisted_methods = {
 	"mymb_ecommerce.mymb_b2c.solr_search.shop": "omnicommerce.controllers.solr_search.shop",
-    "mymb_ecommerce.mymb_b2c.solr_search.products" : "omnicommerce.controllers.solr_search.shop"
+    "mymb_ecommerce.mymb_b2c.solr_search.products" : "omnicommerce.controllers.solr_search.products"
 }
 #
 # each overriding function accepts a `data` argument;
