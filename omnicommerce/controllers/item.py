@@ -176,7 +176,7 @@ def transform_to_solr_document(item):
 
 
     promo_price = promo_price_with_vat = discount_value = discount_percent = discount_type = None
-    if is_promo and gross_price_with_vat:
+    if is_promo and gross_price_with_vat and prices.get('price_list_rate') and ( prices.get('price_list_rate')!= net_price):
         promo_price = prices.get('price_list_rate', 0)
         promo_price_with_vat = promo_price
         if prices.get('discount_amount'):
@@ -187,7 +187,8 @@ def transform_to_solr_document(item):
             discount_type = "discount_rate"
         discount_value = round(gross_price_with_vat - promo_price_with_vat, 2)
         discount_percent = int((1 - promo_price_with_vat / gross_price_with_vat) * 100) if gross_price_with_vat else None
-
+    else:
+        is_promo = False
             
     start_promo_date_str = prices.get('start_promo_date', None)
     end_promo_date_str = prices.get('end_promo_date', None)
