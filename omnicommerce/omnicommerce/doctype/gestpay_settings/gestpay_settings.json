@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2023-08-23 16:30:08.786841",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "shop_login",
+  "test_environment"
+ ],
+ "fields": [
+  {
+   "fieldname": "shop_login",
+   "fieldtype": "Data",
+   "label": "Shop Login"
+  },
+  {
+   "default": "0",
+   "fieldname": "test_environment",
+   "fieldtype": "Check",
+   "label": "Test Environment",
+   "options": "true"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2023-08-23 16:31:44.133331",
+ "modified_by": "Administrator",
+ "module": "Omnicommerce",
+ "name": "GestPay Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
