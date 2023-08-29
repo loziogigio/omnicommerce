@@ -1,6 +1,5 @@
 
 import frappe
-from frappe.model.db_query import DatabaseQuery
 from omnicommerce.controllers.solr_crud import add_document_to_solr
 from datetime import datetime
 from erpnext.e_commerce.shopping_cart.product_info import get_product_info_for_website
