@@ -212,7 +212,7 @@ def map_solr_response_b2c(search_results ):
                 continue
             if solr_field == 'images':
                 # Map the image URLs
-                images = media.get_image_sizes(result , prefix_thumb='',prefix_gallery='' ,prefix_main='')
+                images = media.get_image_suffix(result )
                 mapped_result.update(images)
             else:
                 mapped_result[response_field] = result[solr_field]

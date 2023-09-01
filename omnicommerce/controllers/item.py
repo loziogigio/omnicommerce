@@ -6,6 +6,7 @@ from erpnext.e_commerce.shopping_cart.product_info import get_product_info_for_w
 from mymb_ecommerce.mymb_b2c.settings.configurations import Configurations
 from bs4 import BeautifulSoup
 from frappe.utils import cint, flt, fmt_money
+from slugify import slugify
 
 from erpnext.accounts.doctype.pricing_rule.pricing_rule import get_pricing_rule_for_item
 
@@ -104,12 +105,12 @@ def import_website_items_in_solr(limit=None, page=None, filters=None):
     for item in items["data"]:
         solr_document = transform_to_solr_document(item)
 
-        # if solr_document is None or not item['data'].get('name') or not item['data'].get('website_image'):
-        #     sku = item['data'].get('item_code', "No code available")
-        #     skipped_items.append(sku)
-        #     solr_id = solr_document['id'] if solr_document else "No id available"
-        #     frappe.log_error(f"Warning: Skipped Item in solr  SKU: {sku} , D: {solr_id}  to Solr", f"Skipped document with SKU: {sku} due to missing slug or prices or properties or medias. {solr_document}")
-        #     continue
+        if solr_document is None or not solr_document.get('name') or not solr_document.get('images'):
+            sku = item['data'].get('item_code', "No code available")
+            skipped_items.append(sku)
+            solr_id = solr_document['id'] if solr_document else "No id available"
+            frappe.log_error(f"Warning: Skipped Item in solr  SKU: {sku} , D: {solr_id}  to Solr", f"Skipped document with SKU: {sku} due to missing name  or images. {solr_document}")
+            continue
 
         result = add_document_to_solr(solr_document)
         if result['status'] == 'success':
@@ -141,7 +142,11 @@ def transform_to_solr_document(item):
     name = item['web_item_name'] or item['item_name']
     name = BeautifulSoup(name, 'html.parser').get_text() if name else None
 
-    slug = item['route']
+    slug = "b2c/"+slugify(name )+ "-" + sku if name and sku else None
+
+    # If slug is None, return None to skip this item
+    if slug is None or id is None or sku is None:
+        return None
 
     short_description = item['short_description']
     short_description = BeautifulSoup(short_description, 'html.parser').get_text() if short_description else None
@@ -158,16 +163,29 @@ def transform_to_solr_document(item):
         images = [item['image'] for item in item['slideshow_items']]
 
 
-    prices = item.get('prices', None)
-    if prices is None or id is None or sku is None:
-        return None
+    # Ensure prices is initialized
+    prices = item.get('prices') or {}
 
-    
-    net_price = prices['net_price']
-    net_price_with_vat = prices.get('net_price_with_vat', net_price)
-    gross_price = prices.get('gross_price', net_price)
-    gross_price_with_vat = prices.get('gross_price_with_vat', net_price)
-    availability = item['product_info']['stock_qty'][0][0]
+    # Handle the case where prices is NoneType
+    if item.get('prices') is not None:
+        prices = item['prices']
+        net_price = prices.get('net_price', 0)
+        net_price_with_vat = prices.get('net_price_with_vat', net_price)
+        gross_price = prices.get('gross_price', net_price)
+        gross_price_with_vat = prices.get('gross_price_with_vat', net_price)
+    else:
+        net_price = net_price_with_vat = gross_price = gross_price_with_vat = 0
+
+
+    # Handle the case where stock_qty might not be in the expected format
+    stock_qty = item.get('product_info', {}).get('stock_qty', [])
+    if stock_qty and isinstance(stock_qty[0], (list, tuple)) and len(stock_qty[0]) > 0:
+        availability = stock_qty[0][0]
+    else:
+        if net_price > 0:
+            availability = 0
+        else: #this is the case in wich we have service that needs just to be quoted in frontend side
+            availability = 100000
 
     
     is_promo = prices.get('is_promo', False)
