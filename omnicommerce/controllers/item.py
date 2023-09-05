@@ -106,7 +106,7 @@ def import_website_items_in_solr(limit=None, page=None, filters=None):
         solr_document = transform_to_solr_document(item)
 
         if solr_document is None or not solr_document.get('name') or not solr_document.get('images'):
-            sku = item['data'].get('item_code', "No code available")
+            sku = item.get('item_code', "No code available")
             skipped_items.append(sku)
             solr_id = solr_document['id'] if solr_document else "No id available"
             frappe.log_error(f"Warning: Skipped Item in solr  SKU: {sku} , D: {solr_id}  to Solr", f"Skipped document with SKU: {sku} due to missing name  or images. {solr_document}")
