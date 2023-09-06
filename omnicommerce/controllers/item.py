@@ -142,7 +142,7 @@ def transform_to_solr_document(item):
     name = item['web_item_name'] or item['item_name']
     name = BeautifulSoup(name, 'html.parser').get_text() if name else None
 
-    slug = "b2c/"+slugify(name )+ "-" + sku if name and sku else None
+    slug = "b2c/"+slugify(name + "-" + sku )if name and sku else None
 
     # If slug is None, return None to skip this item
     if slug is None or id is None or sku is None:
