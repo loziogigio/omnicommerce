@@ -125,6 +125,13 @@ app_license = "MIT"
 #	}
 # }
 
+doc_events = {
+    "Website Item": {
+        "on_update": "omnicommerce.controllers.item.website_item_on_update",
+        "before_delete": "omnicommerce.controllers.item.website_item_before_delete"
+    }
+}
+
 # Scheduled Tasks
 # ---------------
 

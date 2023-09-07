@@ -7,7 +7,7 @@ from mymb_ecommerce.mymb_b2c.settings.configurations import Configurations
 from bs4 import BeautifulSoup
 from frappe.utils import cint, flt, fmt_money
 from slugify import slugify
-
+from mymb_ecommerce.controllers.solr_crud import delete_document_to_solr
 from erpnext.accounts.doctype.pricing_rule.pricing_rule import get_pricing_rule_for_item
 
 
@@ -366,3 +366,26 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
                     price_obj["formatted_price"], price_obj["formatted_mrp"] = "", ""
 
             return price_obj
+
+
+def website_item_on_update(doc, method):
+    """Hook to handle updates on 'Web Site Item'."""
+    
+    # Check if the item is published
+    if doc.published == True:
+        # Import/update the item in Solr
+        filters = {
+            "name": doc.name
+        }
+        import_website_items_in_solr(filters=filters)
+    elif doc.published == False and method == "on_update":
+        # If the status changes to "Unpublished" from "Published", remove it from Solr
+        delete_document_to_solr(id=doc.item_code)  # Assuming the id is the name of the doc
+
+def website_item_before_delete(doc, method):
+    """Hook to handle before delete on 'Web Site Item'."""
+
+    # Remove the item from Solr if it's being deleted
+    delete_document_to_solr(id=doc.item_code)
+
+
