@@ -154,10 +154,10 @@ app_license = "MIT"
 # Overriding Methods
 # ------------------------------
 #
-override_whitelisted_methods = {
-	"mymb_ecommerce.mymb_b2c.solr_search.shop": "omnicommerce.controllers.solr_search.shop",
-    "mymb_ecommerce.mymb_b2c.solr_search.products" : "omnicommerce.controllers.solr_search.products"
-}
+# override_whitelisted_methods = {
+# 	"mymb_ecommerce.mymb_b2c.solr_search.shop": "omnicommerce.controllers.solr_search.shop",
+#     "mymb_ecommerce.mymb_b2c.solr_search.products" : "omnicommerce.controllers.solr_search.products"
+# }
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
