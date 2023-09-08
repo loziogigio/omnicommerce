@@ -4,7 +4,6 @@ from mymb_ecommerce.mymb_b2c.settings.configurations import Configurations
 from mymb_ecommerce.mymb_ecommerce.item_feature import get_features_by_item_name, map_feature_with_uom_via_family_code
 from mymb_ecommerce.mymb_ecommerce.item_review import get_item_reviews
 from mymb_ecommerce.mymb_ecommerce.wishlist import get_from_wishlist
-from mymb_ecommerce.repository.DataRepository import DataRepository
 from mymb_ecommerce.utils.media import get_website_domain
 import frappe
 from frappe import _
@@ -44,7 +43,7 @@ def catalogue(args=None):
 
     if wishlist_items:
         item_codes = [item['item_code'] for item in wishlist_items]
-        query = f'text:{text} AND ({" OR ".join([f"carti:{code}" for code in item_codes])})'
+        query = f'text:{text} AND ({" OR ".join([f"sku:{code}" for code in item_codes])})'
     else:
         query = f'text:{text}'
 
