@@ -11,6 +11,18 @@ from frappe.realtime import publish_realtime
 from frappe.utils.weasyprint import PrintFormatGenerator
 
 
+def ensure_folder_exists(folder_path):
+    """Ensure that a folder exists. If not, create it."""
+    if not frappe.db.exists("Folder", folder_path):
+        folder_name = folder_path.split("/")[-1]
+        parent_folder = "/".join(folder_path.split("/")[:-1]) or "Home"
+        frappe.get_doc({
+            "doctype": "Folder",
+            "folder_name": folder_name,
+            "is_folder": 1,
+            "parent_folder": parent_folder
+        }).insert()
+
 
 def attach_pdf(doctype, name, title, lang=None, auto_name=None, print_format=None, letterhead=None):
     """
@@ -32,6 +44,10 @@ def attach_pdf(doctype, name, title, lang=None, auto_name=None, print_format=Non
 
     doctype_folder = "Home/" + doctype
     title_folder = doctype_folder + "/" + title
+
+    ensure_folder_exists(title_folder)
+    if not frappe.db.exists("Folder", title_folder):
+        frappe.throw(_("Folder {0} does not exist.").format(title_folder))
 
 
 
