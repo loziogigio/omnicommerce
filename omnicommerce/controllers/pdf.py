@@ -26,20 +26,22 @@ def get_sales_order_invoice(order_id):
         return {"error": f"No Sales Order found with ID {order_id}"}
     
     # Commented out the user check as you might want to adjust or implement it later
-    # user = frappe.local.jwt_payload['email']
+    user = frappe.local.jwt_payload['email']
     # # Verify that the current user is the owner of the Sales Order
-    # if not user == sales_order.customer:
-    #     return {"error": "You do not have permission to access this Sales Order"}
+    if not user == sales_order.customer:
+        return {"error": "You do not have permission to access this Sales Order"}
 
     base_url = frappe.utils.get_url()
     # Define the desired file path structure
     file_path_structure = f"Home/Invoices/{sales_order.creation.year}/{sales_order.creation.month}"
 
+    file_name = f"{sales_order.name}-invoice"
+
     # Check if the file already exists
-    existing_file = frappe.db.exists("File", {"file_name": f"{sales_order.name}.pdf", "attached_to_doctype": attached_to_doctype})
+    existing_file = frappe.db.exists("File", {"file_name": f"{file_name}.pdf", "attached_to_doctype": attached_to_doctype})
     if existing_file:
         file_doc = frappe.get_doc("File", existing_file)
-        formatted_date = file_doc.creation.strftime("%d-%m-%Y")
+        formatted_date = file_doc.creation.strftime("%d-%m-%Y %H:%M:%S")
         return {
             "name": sales_order.name,
             "attachment_files": [f"{base_url}{file_doc.file_url}"],
@@ -53,8 +55,11 @@ def get_sales_order_invoice(order_id):
     pdf_data = get_pdf_data(attached_to_doctype, sales_order.name, print_format="Standard", letterhead=get_default_letterhead())
 
     # Attach PDF to the Sales Order
-    file_doc = save_and_attach(pdf_data, attached_to_doctype, sales_order.name, file_path_structure)
-    formatted_date = file_doc.creation.strftime("%d-%m-%Y")
+    file_doc = save_and_attach(pdf_data, attached_to_doctype, file_name, file_path_structure)
+    # Convert the creation string to a datetime object
+    creation_datetime = datetime.strptime(file_doc.creation, "%Y-%m-%d %H:%M:%S.%f")
+    # Format the datetime object to your desired string format
+    formatted_date = creation_datetime.strftime("%d-%m-%Y %H:%M:%S")
 
     # Extract the relevant fields from the Sales Order document and return them as a dictionary
     return {
@@ -121,22 +126,7 @@ def create_folder_structure(folder_path):
 
 def get_pdf_data(doctype, name, print_format=None, letterhead=None):
     """Document -> HTML -> PDF."""
-    # html = frappe.get_print(doctype, name, print_format, letterhead=letterhead)
-
-    # Define the cart as a dictionary
-    cart = {
-        'Samsung Galaxy S20': 10,
-        'iPhone 13': 80
-    }
-
-    html = '<h1>Invoice from Star Electronics e-Store!</h1>'
-
-    # Add items to PDF HTML
-    html += '<ol>'
-    for item, qty in cart.items():
-        html += f'<li>{item} - {qty}</li>'
-    html += '</ol>'
-    
+    html = frappe.get_print(doctype, name, print_format, letterhead=letterhead)
 
     return get_pdf(html)
 
