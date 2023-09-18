@@ -66,3 +66,64 @@ def send_sales_order_confirmation_email(sales_order=None, name=None , attachment
         # Return a response indicating that there was an error
         return {"status": "Failed", "message": f"Error encountered: {str(e)}"}
 
+
+@frappe.whitelist(allow_guest=True)
+def account_request(**kwargs):
+    # Check if neither name nor name is provided
+    recipients="d.shima@crowdechain.com"
+    email_template="request-form"
+    attachment=kwargs.get('attachment','')
+    name=kwargs.get('name','')
+    request_id=kwargs.get('request_id','')
+
+
+    query_args = {key: value for key, value in kwargs.items() if key not in ('cmd', 'attachment')}
+    text = ''
+
+    if query_args:
+        text += '<br/>'.join([f'{key} : {value}' for key, value in query_args.items()]) + '<br/>'
+
+    # Check if the specified email template exists
+    if frappe.db.exists("Email Template", email_template):
+        email_template = frappe.get_doc("Email Template", email_template)
+    else:
+        default_email_templates = frappe.get_all("Email Template", limit=1)
+        if not default_email_templates:
+            return {"status": "Failed", "message": "No email template found."}
+        email_template = frappe.get_doc("Email Template", default_email_templates[0].name)
+        
+    
+    context = {
+        "request_id":request_id,
+        "name":name,
+        "text":text,
+    }
+
+    try:
+        # Render the email content with the context
+        rendered_email_content = frappe.render_template(email_template.response, context)
+        rendered_subject = frappe.render_template(email_template.subject, context)
+
+
+        # Conditionally generate PDF of the Sales Order
+        attachment_data = []
+        if attachment:
+            pdf_data = frappe.attach_print(doctype='', name=name, file_name=F"{name}-invoice.pdf" , print_letterhead=True)
+            attachment_data.append(pdf_data)
+
+        # Send email
+        frappe.sendmail(
+            recipients=recipients,
+            subject=rendered_subject,
+            message=rendered_email_content,
+            attachments=attachment_data,
+            reference_name=name
+        )
+
+        return {"status": "Success", "message": "Email sent successfully."}
+    except Exception as e:
+        # Log the error
+        frappe.log_error(message=f"Error sending Sales and Shipping Request for {name}: {str(e)}", title=f"Request {name} Email Error ")
+
+        # Return a response indicating that there was an error
+        return {"status": "Failed", "message": f"Error encountered: {str(e)}"}
