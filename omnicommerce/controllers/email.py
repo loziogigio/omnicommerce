@@ -70,7 +70,7 @@ def send_sales_order_confirmation_email(sales_order=None, name=None , attachment
 
 @frappe.whitelist(allow_guest=True)
 def request_form(**kwargs):
-
+    request_id=kwargs.get('request_id','')
     # Handle attachment data
     if hasattr(frappe.request, 'files') and frappe.request.files:
         # Assuming single file upload, modify as per your requirements
@@ -86,12 +86,11 @@ def request_form(**kwargs):
     # Spread kwargs into context and replace underscores with spaces
     context = {key.replace('_', ' '): value for key, value in kwargs.items()}
     
-
-
+    email_template="request_form"
 
     # Check if the specified email template exists
-    if frappe.db.exists("Request Form", email_template):
-        email_template = frappe.get_doc("Request Form", email_template)
+    if frappe.db.exists("Email Template", email_template):
+        email_template = frappe.get_doc("Email Template", email_template)
     else:
         default_email_templates = frappe.get_all("Email Template", limit=1)
         if not default_email_templates:
@@ -104,7 +103,7 @@ def request_form(**kwargs):
     
     context = {
         "context":context,
-        "request_id":kwargs.request_id
+        "request_id":request_id
         # ... you can add other context variables as needed
     }
     try:
