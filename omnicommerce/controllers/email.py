@@ -86,7 +86,7 @@ def request_form(**kwargs):
     # Spread kwargs into context and replace underscores with spaces
     context = {key.replace('_', ' '): value for key, value in kwargs.items()}
     
-    email_template="request_form"
+    email_template="request-form"
 
     # Check if the specified email template exists
     if frappe.db.exists("Email Template", email_template):
