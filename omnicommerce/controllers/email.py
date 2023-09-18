@@ -95,7 +95,11 @@ def request_form(**kwargs):
 
 
     # Spread kwargs into context and replace underscores with spaces
-    context = {key.replace('_', ' '): value for key, value in kwargs.items()}
+    query_args = {key.replace('_', ' '): value for key, value in kwargs.items() if key not in ('cmd')}
+    context = ''
+
+    if query_args:
+        context += '<br/>'.join([f'{key}={value}' for key, value in query_args.items()]) + '<br/>'
     
     email_template="request-form"
 
