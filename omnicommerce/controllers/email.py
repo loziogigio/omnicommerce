@@ -70,18 +70,29 @@ def send_sales_order_confirmation_email(sales_order=None, name=None , attachment
 
 @frappe.whitelist(allow_guest=True)
 def request_form(**kwargs):
-    request_id=kwargs.get('request_id','')
+
+    # Extract form data from the request
+    form_data = dict(frappe.request.form)
+    
+    # Merge form_data into kwargs. This will allow form fields to override any matching kwargs, if necessary.
+    kwargs.update(form_data)
+    
+    request_id = kwargs.get('request_id', '')
     # Handle attachment data
+
     if hasattr(frappe.request, 'files') and frappe.request.files:
-        # Assuming single file upload, modify as per your requirements
-        uploaded_file = frappe.request.files['file']  # 'file' is the key, replace with the name you set in Postman
-        attachment_data = {
-            "filename": uploaded_file.filename,
-            "content": uploaded_file.stream.read(),
-            "content_type": uploaded_file.content_type
-        }
+        attachment_data = []
+        for file_key in frappe.request.files:
+            uploaded_file = frappe.request.files[file_key]
+            
+            attachment_data.append({
+                "filename": uploaded_file.filename,
+                "content": uploaded_file.stream.read(),
+                "content_type": uploaded_file.content_type
+            })
     else:
         attachment_data = None
+
 
     # Spread kwargs into context and replace underscores with spaces
     context = {key.replace('_', ' '): value for key, value in kwargs.items()}
