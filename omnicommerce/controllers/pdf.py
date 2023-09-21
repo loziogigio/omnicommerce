@@ -40,19 +40,19 @@ def get_sales_order_invoice(order_id):
 
     file_name = f"{sales_order.name}-invoice"
 
-    # # Check if the file already exists
-    # existing_file = frappe.db.exists("File", {"file_name": f"{file_name}.pdf", "attached_to_name": sales_order.name})
-    # if existing_file:
-    #     file_doc = frappe.get_doc("File", existing_file)
-    #     formatted_date = file_doc.creation.strftime("%d-%m-%Y %H:%M:%S")
-    #     return {
-    #         "name": sales_order.name,
-    #         "attachment_files": [f"{file_doc.file_url}"],
-    #         "creation_date": formatted_date,
-    #         "status": sales_order.status,
-    #         "total": sales_order.total,
-    #         "items": [{"item_code": item.item_code, "item_name": item.item_name, "qty": item.qty, "rate": item.rate, "image": item.image} for item in sales_order.items]
-    #     }
+    # Check if the file already exists
+    existing_file = frappe.db.exists("File", {"file_name": f"{file_name}.pdf", "attached_to_name": sales_order.name})
+    if existing_file:
+        file_doc = frappe.get_doc("File", existing_file)
+        formatted_date = file_doc.creation.strftime("%d-%m-%Y %H:%M:%S")
+        return {
+            "name": sales_order.name,
+            "attachment_files": [f"{file_doc.file_url}"],
+            "creation_date": formatted_date,
+            "status": sales_order.status,
+            "total": sales_order.total,
+            "items": [{"item_code": item.item_code, "item_name": item.item_name, "qty": item.qty, "rate": item.rate, "image": item.image} for item in sales_order.items]
+        }
 
     # Generate PDF data
     print_format = "sales-order-invoice"

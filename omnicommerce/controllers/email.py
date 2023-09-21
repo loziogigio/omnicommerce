@@ -124,8 +124,9 @@ def request_form(**kwargs):
     if query_args:
         context_string += '<br/>'.join([f'{key}={value}' for key, value in query_args.items()]) + '<br/>'
         
+    recipient = kwargs.get('recipient', '')
     
-    recipients = ["admin@crowdechain.com"]
+    recipients = [recipient]
 
     context = {
         "context":context_string,
