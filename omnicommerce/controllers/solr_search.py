@@ -343,6 +343,20 @@ def products():
     product["features"] = get_features_by_item_name(product["sku"])
     product['item_reviews'] = get_item_reviews(product["sku"])
 
+        # Fetch from the doctype Website Item where item_code=sku
+    website_item = frappe.get_value("Website Item", {"item_code": product["sku"]},
+                                   ["web_long_description", "short_description", "name"], as_dict=True)
+
+    if not website_item:
+        frappe.throw(_('Website Item not found for SKU {0}').format(product["sku"]), frappe.DoesNotExistError)
+
+    # Update product dictionary with details from Website Item
+    product['long_description'] = website_item.get('web_long_description', '')
+    product['short_description'] = website_item.get('short_description', '')
+    product['item_reviews'] = get_item_reviews(product["sku"])
+
+
+
 
 
     # Construct the response
