@@ -177,15 +177,20 @@ def transform_to_solr_document(item):
         net_price = net_price_with_vat = gross_price = gross_price_with_vat = 0
 
 
-    # Handle the case where stock_qty might not be in the expected format
-    stock_qty = item.get('product_info', {}).get('stock_qty', [])
-    if stock_qty and isinstance(stock_qty[0], (list, tuple)) and len(stock_qty[0]) > 0:
-        availability = stock_qty[0][0]
-    else:
-        if net_price > 0:
+    stock_qty = item.get('product_info', {}).get('stock_qty', 0)
+
+    if isinstance(stock_qty, (float, int)):
+        if net_price > 0 and stock_qty == 0:
             availability = 0
-        else: #this is the case in wich we have service that needs just to be quoted in frontend side
+        elif stock_qty > 0:
+            availability = stock_qty
+        else:  # This is the case in which we have a service that needs just to be quoted on the frontend side
             availability = 100000
+    else:
+        frappe.log_error(message=f"Warning :  {stock_qty}", title="Unexpected Error in transform_to_solr_document stock_qty")
+        return None
+        # Handle unexpected stock_qty types or formats here. Maybe log an error or raise an exception.
+
 
     
     is_promo = prices.get('is_promo', False)
