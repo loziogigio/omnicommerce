@@ -1,4 +1,5 @@
 
+from urllib.parse import quote
 from mymb_ecommerce.utils.Media import Media
 from mymb_ecommerce.mymb_b2c.settings.configurations import Configurations
 from mymb_ecommerce.mymb_ecommerce.item_feature import get_features_by_item_name, map_feature_with_uom_via_family_code
@@ -31,15 +32,16 @@ def catalogue(args=None):
     groups = frappe.local.request.args.get('category') or None
     features = frappe.local.request.args.get('features') or None
     whishlist = frappe.local.request.args.get('wishlist') or None
-    home = frappe.local.request.args.get('home') or None
     category_detail = frappe.local.request.args.get('category_detail') or None
-
+    skus = frappe.local.request.args.get('sku') or None
     wishlist_items = []  # Initialize wishlist_items variable
 
     #we just search for whishlist
     if whishlist:
         JWTManager.verify_jwt_in_request()
         wishlist_items = get_from_wishlist(user=frappe.local.jwt_payload['email'])
+    
+    
 
     if wishlist_items:
         item_codes = [item['item_code'] for item in wishlist_items]
@@ -47,8 +49,11 @@ def catalogue(args=None):
     else:
         query = f'text:{text}'
 
-    if home:
-        query = f'text:piscina' 
+    if skus:
+        sku_list = skus.split(';')
+        sku_queries = [f'sku:{quote(sku)}' for sku in sku_list]
+        query += f' AND ({" OR ".join(sku_queries)})'
+
 
     # Check if min_price is provided in the query string and add it to the query if it is
     min_price = frappe.local.request.args.get('min_price')
