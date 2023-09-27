@@ -58,7 +58,15 @@ app_license = "MIT"
 #	"methods": "omnicommerce.utils.jinja_methods",
 #	"filters": "omnicommerce.utils.jinja_filters"
 # }
-
+jinja = {
+    "methods": [
+        "omnicommerce.controllers.jinja_filters.json_encode",
+        "omnicommerce.controllers.jinja_filters.generate_item_table",
+        "omnicommerce.controllers.jinja_filters.customer_info_box"
+    ],
+    "filters": [
+    ]
+}
 # Installation
 # ------------
 
