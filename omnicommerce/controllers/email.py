@@ -105,7 +105,7 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None , attac
     }
     try:
         # Render the email content with the context
-        rendered_email_content = frappe.render_template(email_template.response, context)
+        rendered_email_content = frappe.render_template(email_template.response_, context)
         rendered_subject = frappe.render_template(email_template.subject, context)
 
         # Send email
