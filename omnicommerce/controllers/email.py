@@ -84,6 +84,24 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None , attac
     # If there's still no sales_order at this point, return failure
     if not sales_order:
         return {"status": "Failed", "message": "Unable to fetch Sales Order."}
+    
+    # Recover addresses with additional checks
+    billing_address = None
+    shipping_address = None
+    
+    try:
+        if sales_order.customer_address:
+            billing_address = frappe.get_doc("Address", sales_order.customer_address)
+    except frappe.DoesNotExistError:
+        frappe.log_error(frappe.get_traceback(), "Failed to get billing address for Sales Order {sales_order.name}")
+    
+    try:
+        if sales_order.shipping_address_name:
+            shipping_address = frappe.get_doc("Address", sales_order.shipping_address_name)
+    except frappe.DoesNotExistError:
+        frappe.log_error(frappe.get_traceback(), f"Failed to get shipping address for Sales Order {sales_order.name}")
+    
+
 
     # Check if the specified email template exists
     if frappe.db.exists("Email Template", email_template):
@@ -100,7 +118,10 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None , attac
     
     context = {
         **sales_order.as_dict(),
-        "wire_info":wire_info
+        "wire_info":wire_info,
+        "billing_address":billing_address,
+        "shipping_address":shipping_address
+
         # ... you can add other context variables as needed
     }
     try:
