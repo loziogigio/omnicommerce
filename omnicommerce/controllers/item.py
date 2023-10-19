@@ -15,10 +15,12 @@ from erpnext.accounts.doctype.pricing_rule.pricing_rule import get_pricing_rule_
 config = Configurations()
 solr_instance = config.get_solr_instance()
 image_uri_instance = config.get_image_uri_instance()
-from erpnext.e_commerce.doctype.e_commerce_settings.e_commerce_settings import (
-	get_shopping_cart_settings
+
+from webshop.webshop.doctype.webshop_settings.webshop_settings import (
+	get_shopping_cart_settings,
 )
-from erpnext.e_commerce.shopping_cart.cart import  _set_price_list
+
+from webshop.webshop.shopping_cart.cart import  _set_price_list
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
 def get_website_items(limit=None, page=1, filters=None):
@@ -263,7 +265,7 @@ def transform_to_solr_document(item):
     return solr_document
 
 def get_price(item_code, price_list, customer_group, company, qty=1):
-    from erpnext.e_commerce.shopping_cart.cart import get_party
+    from webshop.webshop.shopping_cart.cart import get_party
 
     template_item_code = frappe.db.get_value("Item", item_code, "variant_of")
 
