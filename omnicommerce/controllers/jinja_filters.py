@@ -1,5 +1,6 @@
 import json
 import frappe
+from frappe import db
 from frappe.model.document import BaseDocument
 
 def json_encode(data):
@@ -43,41 +44,139 @@ def translate(label, language):
             "it": "Importo",
             "sk": "Množstvo",
             "cz": "Částka"
+        },
+        "Discount": {
+            "en": "Discount",
+            "es": "Squento",
+            "it": "Sconto",
+            "sk": "Zľava",
+            "cz": "Zľava"
+        },
+        "Net Price": {
+            "en": "Net Price",
+            "es": "Prezzo Netto",
+            "it": "Prezzo Netto",
+            "sk": "Cena",
+            "cz": "Cena"
+        },
+        "%VAT": {
+            "en": "%VAT",
+            "es": "%IVA",
+            "it": "%IVA",
+            "sk": "%DPH",
+            "cz": "%DPH"
+        },
+        "VAT": {
+            "en": "VAT",
+            "es": "IVA",
+            "it": "IVA",
+            "sk": "DPH",
+            "cz": "DPH"
+        },
+        "EUR Total": {
+            "en": "EUR Total",
+            "es": "EUR Total",
+            "it": "EUR Totale",
+            "sk": "EUR Celkom",
+            "cz": "EUR Celkom"
         }
     }
-    
+
     return translations.get(label, {}).get(language, label)
 
-def generate_item_table(items, language="en"):
+@frappe.whitelist(allow_guest=True, methods=['POST'])
+def generate_item_table(items=None, language="en", sales_order_name=None):
+    if sales_order_name:
+        items = db.get_values("Sales Order Item", filters={"parent": sales_order_name}, fieldname=["image", "item_code", "item_name", "rate", "qty", "amount", "net_rate" , "net_amount", "discount_percentage", "discount_amount"], as_dict=True)
+        taxes = get_sales_order_taxes(sales_order_name)
+        cumulative_tax_rate = sum([tax.rate for tax in taxes])
+        vat_percent = int(cumulative_tax_rate)
+        total_sales_order_discount = frappe.db.get_value("Sales Order", sales_order_name, "discount_amount")
+    
     table_html = f"""<table border="1" style="width: 100%; border-collapse: collapse;">
         <thead>
             <tr border="1">
-                <th style="padding: 5px;">{translate("Image", language)}</th>
                 <th style="padding: 5px;">{translate("Item", language)}</th>
-                <th style="padding: 5px;">{translate("Rate", language)}</th>
                 <th style="padding: 5px;">{translate("Quantity", language)}</th>
-                <th style="padding: 5px;">{translate("Amount", language)}</th>
+                <th style="padding: 5px;">{translate("Rate", language)}</th>
+                <th style="padding: 5px;">{translate("Discount", language)}</th>
+                <th style="padding: 5px;">{translate("Net Price", language)}</th>
+                <th style="padding: 5px;">{translate("%VAT", language)}</th>
+                <th style="padding: 5px;">{translate("VAT", language)}</th>
+                <th style="padding: 5px;">{translate("EUR Total", language)}</th>
             </tr>
         </thead>
         <tbody>"""
 
+
     for item in items:
+        item_tax = calculate_item_tax(item.rate, taxes) if sales_order_name else 0
+        amount_tax = item_tax*item.get('qty')
+
+        if all(not tax.get('included_in_print_rate') for tax in taxes):  # If no tax is included in print rate
+            net_rate = item.get("net_rate") 
+            rate = item.get("rate") + item_tax
+            amount = rate*item.get('qty')
+            
+
+        else:
+            net_rate = item.get("net_rate") 
+            rate = item.get("rate") 
+            amount = rate*item.get('qty')
+
         row_html = f"""
             <tr>
-                <td><img src="{item.image}" alt="{item.item_code}" style="width:50px"></td>
-                <td>{item.item_code} : {item.item_name}</td>
-                <td>{item.rate}</td>
-                <td>{item.qty}</td>
-                <td>{item.amount}</td>
+                <td>{item.get('item_code')} : {item.get('item_name')}</td>
+                <td>{item.get('qty')}</td>
+                <td>{'%.2f' % rate}</td>
+                <td>{'%.2f' % item.get('discount_amount', 0)}</td>
+                <td>{'%.2f' % net_rate}</td>
+                <td>{vat_percent}</td>
+                <td>{'%.2f' % amount_tax}</td>
+                <td>{'%.2f' % amount}</td>
             </tr>
         """
+
         table_html += row_html
 
-    table_html += "</tbody></table>"
+        discount_net_amount = total_sales_order_discount / (1 + (vat_percent/100))
+        discount_vat_amount = total_sales_order_discount - discount_net_amount
+
+        discount_row = f"""
+            <tr>
+                <td >{translate("Discount", language)}</td>
+                <td >1</td>
+                <td>{'%.2f' % total_sales_order_discount}</td>
+                <td></td>
+                <td>{discount_net_amount}</td>
+                <td>{vat_percent}</td>
+                <td>{discount_vat_amount}</td>
+                <td>{'%.2f' % total_sales_order_discount}</td>
+
+            </tr>
+            """
+
+    table_html += discount_row+"</tbody></table>"
 
     return table_html
 
+def get_sales_order_taxes(sales_order_name):
+    return db.get_all("Sales Taxes and Charges", filters={"parent": sales_order_name}, fields=["rate", "included_in_print_rate"])
 
+
+def calculate_item_tax(item_amount, taxes):
+    total_tax = 0
+    for tax in taxes:
+        if tax.get('included_in_print_rate'):
+            # Tax is already included in the item rate, so we reverse calculate
+            tax_amount = (item_amount * tax.get('rate')) / (100 + tax.get('rate'))
+        else:
+            # Tax is on top of the item rate
+            tax_amount = (item_amount * tax.get('rate')) / 100
+        
+        total_tax += tax_amount
+    
+    return total_tax
 
 def customer_info_box(sales_order, language="en"):
     # Translations dictionary
