@@ -85,7 +85,7 @@ def translate(label, language):
     return translations.get(label, {}).get(language, label)
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def generate_item_table_from_sales_invoice(sales_invoice_name):
+def generate_item_table_from_sales_invoice(sales_invoice_name , language="en"):
     # Fetch linked Sales Orders from the Sales Invoice items
     sales_orders = frappe.db.sql("""
         SELECT DISTINCT sales_order
@@ -99,32 +99,32 @@ def generate_item_table_from_sales_invoice(sales_invoice_name):
     if not sales_order_names:
         return {"error": "No associated Sales Order found for this Invoice."}
 
-    return generate_item_table(sales_order_name=sales_order_names[0])
+    return generate_item_table(sales_order_name=sales_order_names[0] , language=language)
 
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
-def generate_item_table(items=None, language="en", sales_order_name=None):
+def generate_item_table( sales_order_name=None , language="en", items=None):
     if sales_order_name:
         items = db.get_values("Sales Order Item", filters={"parent": sales_order_name}, fieldname=["image", "item_code", "item_name", "rate", "qty", "amount", "net_rate" , "net_amount", "discount_percentage", "discount_amount"], as_dict=True)
         taxes = get_sales_order_taxes(sales_order_name)
         cumulative_tax_rate = sum([tax.rate for tax in taxes])
         vat_percent = int(cumulative_tax_rate)
-        total_sales_order_discount = frappe.db.get_value("Sales Order", sales_order_name, "discount_amount")
+        total_sales_order_discount = frappe.db.get_value("Sales Order", sales_order_name, "discount_amount") or 0
     
     table_html = f"""<table border="1" style="width: 100%; border-collapse: collapse;">
         <thead>
             <tr border="1">
-                <th style="padding: 5px;width:40%">{translate("Item", language)}</th>
-                <th style="padding: 5px;">{translate("Quantity", language)}</th>
-                <th style="padding: 5px;">{translate("Rate", language)}</th>
-                <th style="padding: 5px;">{translate("Discount", language)}</th>
-                <th style="padding: 5px;">{translate("Net Price", language)}</th>
-                <th style="padding: 5px;">{translate("%VAT", language)}</th>
-                <th style="padding: 5px;">{translate("VAT", language)}</th>
-                <th style="padding: 5px;">{translate("EUR Total", language)}</th>
+                <th style="width:50%;text-align:left;border: 1px solid black;padding: 5px;">{translate("Item", language)}</th>
+                <th style="text-align:center;border: 1px solid black">{translate("Quantity", language)}</th>
+                <th style="text-align:center;border: 1px solid black">{translate("Rate", language)}</th>
+                <th style="text-align:center;border: 1px solid black">{translate("Discount", language)}</th>
+                <th style="text-align:center;border: 1px solid black">{translate("Net Price", language)}</th>
+                <th style="text-align:center;border: 1px solid black">{translate("%VAT", language)}</th>
+                <th style="text-align:center;border: 1px solid black">{translate("VAT", language)}</th>
+                <th style="text-align:center;border: 1px solid black">{translate("EUR Total", language)}</th>
             </tr>
         </thead>
-        <tbody>"""
+        <tbody style="border: 1px solid black;">"""
 
 
     for item in items:
@@ -144,37 +144,37 @@ def generate_item_table(items=None, language="en", sales_order_name=None):
 
         row_html = f"""
             <tr>
-                <td>{item.get('item_code')} : {item.get('item_name')}</td>
-                <td>{item.get('qty')}</td>
-                <td>{'%.2f' % rate}</td>
-                <td>{'%.2f' % item.get('discount_amount', 0)}</td>
-                <td>{'%.2f' % net_rate}</td>
-                <td>{vat_percent}</td>
-                <td>{'%.2f' % amount_tax}</td>
-                <td>{'%.2f' % amount}</td>
+                <td style="text-align:left;padding: 5px;">{item.get('item_code')} : {item.get('item_name')}</td>
+                <td style="text-align:center;">{item.get('qty')}</td>
+                <td style="text-align:center;">{'%.2f' % rate}</td>
+                <td style="text-align:center;">{'%.2f' % item.get('discount_amount', 0)}</td>
+                <td style="text-align:center;">{'%.2f' % net_rate}</td>
+                <td style="text-align:center;">{vat_percent}</td>
+                <td style="text-align:center;">{'%.2f' % amount_tax}</td>
+                <td style="text-align:center;">{'%.2f' % amount}</td>
             </tr>
         """
 
         table_html += row_html
 
-        discount_net_amount = total_sales_order_discount / (1 + (vat_percent/100))
-        discount_vat_amount = total_sales_order_discount - discount_net_amount
-        discount_qty = 1 if discount_net_amount > 0 else 0
+    discount_net_amount = total_sales_order_discount / (1 + (vat_percent/100))
+    discount_vat_amount = total_sales_order_discount - discount_net_amount
+    discount_qty = 1 if discount_net_amount > 0 else 0
 
 
-        discount_row = f"""
-            <tr>
-                <td >{translate("Discount", language)}</td>
-                <td >{discount_qty}</td>
-                <td>{'%.2f' % total_sales_order_discount}</td>
-                <td></td>
-                <td>{discount_net_amount}</td>
-                <td>{vat_percent}</td>
-                <td>{discount_vat_amount}</td>
-                <td>{'%.2f' % total_sales_order_discount}</td>
+    discount_row = f"""
+        <tr>
+            <td style="text-align:left;padding: 5px;" >{translate("Discount", language)}</td>
+            <td style="text-align:center;">{discount_qty}</td>
+            <td style="text-align:center;" >{'%.2f' % total_sales_order_discount}</td>
+            <td style="text-align:center;"></td>
+            <td style="text-align:center;">{'%.2f' % discount_net_amount}</td>
+            <td style="text-align:center;" >{vat_percent}</td>
+            <td style="text-align:center;" >{'%.2f' % discount_vat_amount}</td>
+            <td style="text-align:center;" >{'%.2f' % total_sales_order_discount}</td>
 
-            </tr>
-            """
+        </tr>
+        """
 
     table_html += discount_row+"</tbody></table>"
 
