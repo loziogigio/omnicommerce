@@ -62,7 +62,9 @@ jinja = {
     "methods": [
         "omnicommerce.controllers.jinja_filters.json_encode",
         "omnicommerce.controllers.jinja_filters.generate_item_table",
-        "omnicommerce.controllers.jinja_filters.customer_info_box"
+        "omnicommerce.controllers.jinja_filters.generate_item_table_from_sales_invoice",
+        # "omnicommerce.controllers.jinja_filters.json_encode",
+        # "omnicommerce.controllers.jinja_filters.customer_info_box"
     ],
     "filters": [
     ]

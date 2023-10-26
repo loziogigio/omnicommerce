@@ -85,6 +85,24 @@ def translate(label, language):
     return translations.get(label, {}).get(language, label)
 
 @frappe.whitelist(allow_guest=True, methods=['POST'])
+def generate_item_table_from_sales_invoice(sales_invoice_name):
+    # Fetch linked Sales Orders from the Sales Invoice items
+    sales_orders = frappe.db.sql("""
+        SELECT DISTINCT sales_order
+        FROM `tabSales Invoice Item`
+        WHERE parent = %s AND sales_order IS NOT NULL AND sales_order != ''
+    """, (sales_invoice_name,), as_dict=True)
+
+    # Extract Sales Order names
+    sales_order_names = [entry.sales_order for entry in sales_orders]
+    
+    if not sales_order_names:
+        return {"error": "No associated Sales Order found for this Invoice."}
+
+    return generate_item_table(sales_order_name=sales_order_names[0])
+
+
+@frappe.whitelist(allow_guest=True, methods=['POST'])
 def generate_item_table(items=None, language="en", sales_order_name=None):
     if sales_order_name:
         items = db.get_values("Sales Order Item", filters={"parent": sales_order_name}, fieldname=["image", "item_code", "item_name", "rate", "qty", "amount", "net_rate" , "net_amount", "discount_percentage", "discount_amount"], as_dict=True)
@@ -96,7 +114,7 @@ def generate_item_table(items=None, language="en", sales_order_name=None):
     table_html = f"""<table border="1" style="width: 100%; border-collapse: collapse;">
         <thead>
             <tr border="1">
-                <th style="padding: 5px;">{translate("Item", language)}</th>
+                <th style="padding: 5px;width:40%">{translate("Item", language)}</th>
                 <th style="padding: 5px;">{translate("Quantity", language)}</th>
                 <th style="padding: 5px;">{translate("Rate", language)}</th>
                 <th style="padding: 5px;">{translate("Discount", language)}</th>
@@ -141,11 +159,13 @@ def generate_item_table(items=None, language="en", sales_order_name=None):
 
         discount_net_amount = total_sales_order_discount / (1 + (vat_percent/100))
         discount_vat_amount = total_sales_order_discount - discount_net_amount
+        discount_qty = 1 if discount_net_amount > 0 else 0
+
 
         discount_row = f"""
             <tr>
                 <td >{translate("Discount", language)}</td>
-                <td >1</td>
+                <td >{discount_qty}</td>
                 <td>{'%.2f' % total_sales_order_discount}</td>
                 <td></td>
                 <td>{discount_net_amount}</td>
