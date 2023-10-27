@@ -54,23 +54,23 @@ app_license = "MIT"
 # ----------
 
 # add methods and filters to jinja environment
-# jinja = {
-#	"methods": "omnicommerce.utils.jinja_methods",
-#	"filters": "omnicommerce.utils.jinja_filters"
-# }
 jinja = {
-    "methods": [
-        "omnicommerce.controllers.jinja_filters.json_encode",
-        "omnicommerce.controllers.jinja_filters.generate_item_table",
-        "omnicommerce.controllers.jinja_filters.generate_item_table_from_sales_invoice",
+	"methods": "omnicommerce.utils.jinja_methods",
+	"filters": "omnicommerce.utils.jinja_filters"
+}
+# jinja = {
+#     "methods": [
+#         "omnicommerce.controllers.jinja_filters.json_encode",
+#         "omnicommerce.controllers.jinja_filters.generate_item_table",
+#         "omnicommerce.controllers.jinja_filters.generate_item_table_from_sales_invoice",
 
         
-        # "omnicommerce.controllers.jinja_filters.json_encode",
-        # "omnicommerce.controllers.jinja_filters.customer_info_box"
-    ],
-    "filters": [
-    ]
-}
+#         # "omnicommerce.controllers.jinja_filters.json_encode",
+#         # "omnicommerce.controllers.jinja_filters.customer_info_box"
+#     ],
+#     "filters": [
+#     ]
+# }
 # Installation
 # ------------
 
