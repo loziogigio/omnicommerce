@@ -1,6 +1,6 @@
 import frappe
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_shipping_rules(country=None, totalPrice=None):
     """Fetch shipping rules based on country and price or the entire list if no filters."""
 
@@ -55,7 +55,7 @@ def get_shipping_rules(country=None, totalPrice=None):
     return {"data": result}
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_deliverable_countries():
     # Assuming there's a field in 'Country' doctype indicating deliverability
     countries = frappe.get_all('Country', filters={'custom_is_deliverable': 1}, fields=['name' ,'code'])
