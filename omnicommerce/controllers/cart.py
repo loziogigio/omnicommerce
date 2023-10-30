@@ -28,7 +28,7 @@ def get_shipping_rules(country=None, totalPrice=None):
     # Fetch associated countries and price ranges for each shipping rule
     for rule in shipping_rules:
         countries = [d.country for d in frappe.get_all("Shipping Rule Country", filters={'parent': rule['shipping_rule']}, fields=['country'])] or [None]
-        conditions = frappe.get_all("Shipping Rule Condition", filters={'parent': rule['shipping_rule']}, fields=['from_value', 'to_value']) or [{'from_value': None, 'to_value': None}]
+        conditions = frappe.get_all("Shipping Rule Condition", filters={'parent': rule['shipping_rule']}, fields=['shipping_amount','from_value', 'to_value']) or [{'from_value': None, 'to_value': None}]
 
         for country in countries:
             for condition in conditions:

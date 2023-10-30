@@ -54,6 +54,10 @@ app_license = "MIT"
 # ----------
 
 # add methods and filters to jinja environment
+jenv = {
+	"methods": "omnicommerce.utils.jinja_methods",
+	"filters": "omnicommerce.utils.jinja_filters"
+}
 jinja = {
 	"methods": "omnicommerce.utils.jinja_methods",
 	"filters": "omnicommerce.utils.jinja_filters"
