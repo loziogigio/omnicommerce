@@ -46,7 +46,7 @@ def get_shipping_rules(country=None, totalPrice=None):
                         "shipping_rule": rule['shipping_rule'],
                         "label": rule['label'],
                         "generic_shipping_amount": rule.get('shipping_amount', 0),
-                        "shipping_amount": condition.get('shipping_amount', 0),
+                        "shipping_amount": condition.get('shipping_amount', rule.get('shipping_amount', 0)),
                         "country": country if country else "ALL",
                         "price_range_from": condition.get('from_value', 0) if condition.get('from_value', 0) else 0,
                         "price_range_to": condition.get('to_value', 0) if condition.get('from_value', 0) else 0,
@@ -59,4 +59,4 @@ def get_shipping_rules(country=None, totalPrice=None):
 def get_deliverable_countries():
     # Assuming there's a field in 'Country' doctype indicating deliverability
     countries = frappe.get_all('Country', filters={'custom_is_deliverable': 1}, fields=['name' ,'code'])
-    return countries
+    return {"data": countries}
