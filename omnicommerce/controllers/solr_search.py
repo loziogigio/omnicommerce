@@ -13,9 +13,7 @@ from mymb_ecommerce.utils.JWTManager import JWTManager, JWT_SECRET_KEY
 jwt_manager = JWTManager(secret_key=JWT_SECRET_KEY)
 
 
-config = Configurations()
-solr_instance = config.get_solr_instance()
-image_uri_instance = config.get_image_uri_instance()
+
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])
 def shop(args=None):
@@ -23,6 +21,9 @@ def shop(args=None):
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])
 def catalogue(args=None):
+    config = Configurations()
+    solr_instance = config.get_solr_instance()
+
     # Get the "start" and "per_page" parameters from the query string
     per_page = int(frappe.local.request.args.get('per_page', 12) or 12 ) 
     page = int(frappe.local.request.args.get('page') or 1)
@@ -162,6 +163,8 @@ def catalogue(args=None):
     return response
 
 def get_menu_category_detail(category_detail):
+
+
     web_site_domain = get_website_domain()
     try:
         # This will fetch specific fields of the document where label matches `menu_category`
@@ -187,6 +190,9 @@ def get_menu_category_detail(category_detail):
 
 def map_solr_response_b2c(search_results ):
     # Define the mapping between Solr and our response
+
+    config = Configurations()
+    image_uri_instance = config.get_image_uri_instance()
     field_mapping = {
         'id': 'id',
         'sku': 'sku',
@@ -312,6 +318,10 @@ def get_default_product_values():
 
 @frappe.whitelist(allow_guest=True)
 def products():
+
+    config = Configurations()
+    solr_instance = config.get_solr_instance()
+
     # Get the Solr instance from the Mymb b2c Settings DocType
     solr = solr_instance
 
