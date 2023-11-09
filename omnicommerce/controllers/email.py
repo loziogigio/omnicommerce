@@ -71,7 +71,7 @@ def send_sales_order_confirmation_email(sales_order=None, name=None , attachment
 
 
 @frappe.whitelist(allow_guest=True)
-def send_sales_order_confirmation_email_html(sales_order=None, name=None , attachment=True , recipients=None , email_template="confirm-sales-order-html" , wire_info=""):
+def send_sales_order_confirmation_email_html(sales_order=None, name=None , attachment=True , recipients=None , email_template="custom-confirm-sales-order-html" , wire_info=""):
     # Check if neither sales_order nor name is provided
     doc_name = "Sales Order"
     if not sales_order and not name:
@@ -103,9 +103,12 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None , attac
     
 
 
-    # Check if the specified email template exists
+    # Check if the custom email template exists
     if frappe.db.exists("Email Template", email_template):
         email_template = frappe.get_doc("Email Template", email_template)
+    # else if the general email template exists by remove 'custom-'
+    if frappe.db.exists("Email Template",  email_template.replace('custom-', '', 1)):
+        email_template = frappe.get_doc("Email Template",  email_template.replace('custom-', '', 1))
     else:
         default_email_templates = frappe.get_all("Email Template", limit=1)
         if not default_email_templates:
