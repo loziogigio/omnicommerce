@@ -2,7 +2,7 @@
 import frappe
 from omnicommerce.controllers.solr_crud import add_document_to_solr
 from datetime import datetime
-from erpnext.e_commerce.shopping_cart.product_info import get_product_info_for_website
+from webshop.webshop.shopping_cart.product_info import get_product_info_for_website
 from mymb_ecommerce.mymb_b2c.settings.configurations import Configurations
 from bs4 import BeautifulSoup
 from frappe.utils import cint, flt, fmt_money
@@ -12,9 +12,7 @@ from erpnext.accounts.doctype.pricing_rule.pricing_rule import get_pricing_rule_
 
 
 
-config = Configurations()
-solr_instance = config.get_solr_instance()
-image_uri_instance = config.get_image_uri_instance()
+
 
 from webshop.webshop.doctype.webshop_settings.webshop_settings import (
 	get_shopping_cart_settings,
@@ -50,9 +48,11 @@ def get_website_items(limit=None, page=1, filters=None):
         selling_price_list = _set_price_list(cart_settings, None)
         for website_item in filtered_website_items:
             product = get_product_info_for_website(item_code=website_item.item_code , skip_quotation_creation=True)
+            item_group = get_item_group_groups(item_code=website_item.item_code)
             merged_data = {
                 **website_item,
-                **product
+                **product,
+                'groups':item_group
             }
             prices = get_price(website_item.item_code,selling_price_list, cart_settings.default_customer_group, cart_settings.company)
             merged_data['prices'] = prices
@@ -64,6 +64,8 @@ def get_website_items(limit=None, page=1, filters=None):
                 merged_data['slideshow_items'] = slideshow_items # Include slideshow details only if exists
 
             items_data.append(merged_data)
+
+
 
 
         result = {
@@ -86,6 +88,28 @@ def get_website_items(limit=None, page=1, filters=None):
             "count": 0
         }
 
+
+def get_item_group_groups(item_code):
+
+    config = Configurations()
+    b2c_item_group = config.b2c_item_group if config.b2c_item_group else 'All Item Groups'
+    item_group = frappe.get_value('Item', item_code, 'item_group')
+    groups_list = []
+
+    # Traverse up the item group tree and collect all item groups
+    while item_group and item_group != b2c_item_group:
+        groups_list.append(item_group)
+        item_group = frappe.get_value('Item Group', item_group, 'parent_item_group')
+
+    # Reverse the list so that the last group is first
+    groups_list = groups_list[::-1]
+
+    # Create the groups dictionary with appropriate keys
+    groups = {}
+    for idx, group in enumerate(groups_list, start=1):
+        groups[f'group_{idx}'] = group
+
+    return groups
 
 def get_slideshow_for_website(slideshow_name):
     try:
@@ -261,6 +285,20 @@ def transform_to_solr_document(item):
         "pricelist_code": prices.get('pricelist_code', None),
         "discount_type": discount_type
     }
+
+    # Assuming 'item' is a dictionary that contains the 'groups' sub-dictionary
+    groups = item.get('groups', None)
+
+    if groups:
+        # Iterate over the groups in the order of their keys (group_1, group_2, etc.)
+        for key in sorted(groups.keys()):
+            # Clean the group value
+            clean_group = groups[key].strip().replace("\t", "").replace("\n", "").replace(",", " ")
+            # Update the solr_document with the cleaned group value
+            solr_document[key] = clean_group
+    if key:
+        solr_document['family_code'] = groups[key]
+        solr_document['family_name'] = groups[key]
 
     return solr_document
 

@@ -344,21 +344,26 @@ def products():
     # Execute the search and get the results
     solr_results = solr.search(**search_params)
 
+    single_result = solr_results['results'][0]
+
+
     # Check if there are any search results
     if solr_results['hits'] == 0:
         frappe.throw(_('Product not found'), frappe.DoesNotExistError)
 
     # Extract the product details from the Solr result
-    product = map_solr_response_b2c([dict(solr_results['results'][0])])[0]
+    product = map_solr_response_b2c([dict(single_result)])[0]
 
     args = frappe._dict()
-    args.family_code = 1009
+    if 'family_code' in product:
+        args.family_code = product.get('family_code')
+
     relatedProducts = catalogue(args)
 
     product["features"] = get_features_by_item_name(product["sku"])
     product['item_reviews'] = get_item_reviews(product["sku"])
 
-        # Fetch from the doctype Website Item where item_code=sku
+    # Fetch from the doctype Website Item where item_code=sku
     website_item = frappe.get_value("Website Item", {"item_code": product["sku"]},
                                    ["web_long_description", "short_description", "name"], as_dict=True)
 
@@ -369,6 +374,34 @@ def products():
     product['long_description'] = website_item.get('web_long_description', '')
     product['short_description'] = website_item.get('short_description', '')
     product['item_reviews'] = get_item_reviews(product["sku"])
+
+    # set categories
+    field = "category"
+    categories = []
+
+    # Initialize an empty string to keep track of the concatenated group values
+    concatenated_groups = ''
+
+    # The sorted() function ensures that the fields are processed in order: group_1, group_2, group_3, etc.
+    for field in sorted(single_result):
+        if field.startswith("group_"):
+            # Replace spaces with hyphens in the current group value
+            group_value_with_hyphens = single_result[field].replace(' ', '-').lower()
+            
+            # If concatenated_groups is not empty, add a comma before appending the new group value
+            if concatenated_groups:
+                concatenated_groups += ","
+                
+            # Append the current group value to the concatenated string
+            concatenated_groups += group_value_with_hyphens
+
+            # Now we have a concatenated string of group values
+            # Create the label and url (assuming URL structure is based on the label)
+            label = single_result[field]
+            url = f"{concatenated_groups}" # Modify this as needed based on your URL structure
+
+            # Append the dictionary with label and url to categories
+            categories.append({'label': label, "url": url})
 
 
 
@@ -382,6 +415,7 @@ def products():
         'bestSellingProducts': relatedProducts['products'],
         'latestProducts': relatedProducts['products'],
         'topRatedProducts': relatedProducts['products'],
+        'categories':categories
     }
 
     # Return the response with HTTP 200 status
