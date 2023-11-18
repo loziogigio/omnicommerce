@@ -92,7 +92,7 @@ def get_website_items(limit=None, page=1, filters=None):
 def get_item_group_groups(item_code):
 
     config = Configurations()
-    b2c_item_group = config.b2c_item_group if config.b2c_item_group else 'All Item Groups'
+    b2c_item_group = config.default_item_group if config.default_item_group else 'All Item Groups'
     item_group = frappe.get_value('Item', item_code, 'item_group')
     groups_list = []
 
@@ -297,7 +297,7 @@ def transform_to_solr_document(item):
             # Update the solr_document with the cleaned group value
             solr_document[key] = clean_group
     if key:
-        solr_document['family_code'] = groups[key]
+        # solr_document['family_code'] = groups[key] #has to be an integer field
         solr_document['family_name'] = groups[key]
 
     return solr_document
