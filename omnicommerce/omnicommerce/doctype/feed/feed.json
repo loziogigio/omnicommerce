@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2023-11-16 12:34:08.386320",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "feed_url",
+  "feed_type"
+ ],
+ "fields": [
+  {
+   "fieldname": "feed_url",
+   "fieldtype": "Data",
+   "label": "Feed Url"
+  },
+  {
+   "fieldname": "feed_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Feed Type",
+   "options": "Trova Prezzi\nGoogle Merchant",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2023-11-16 12:36:09.044100",
+ "modified_by": "Administrator",
+ "module": "Omnicommerce",
+ "name": "Feed",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
