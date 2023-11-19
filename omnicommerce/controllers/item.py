@@ -288,17 +288,19 @@ def transform_to_solr_document(item):
 
     # Assuming 'item' is a dictionary that contains the 'groups' sub-dictionary
     groups = item.get('groups', None)
-
+    last_key = None
     if groups:
+        last_key = None
         # Iterate over the groups in the order of their keys (group_1, group_2, etc.)
         for key in sorted(groups.keys()):
             # Clean the group value
             clean_group = groups[key].strip().replace("\t", "").replace("\n", "").replace(",", " ")
             # Update the solr_document with the cleaned group value
             solr_document[key] = clean_group
-    if key:
+            last_key = key  # Store the last key
+    if last_key:
         # solr_document['family_code'] = groups[key] #has to be an integer field
-        solr_document['family_name'] = groups[key]
+        solr_document['family_name'] = groups[last_key]
 
     return solr_document
 
