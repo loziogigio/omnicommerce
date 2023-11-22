@@ -101,14 +101,16 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None , attac
     except frappe.DoesNotExistError:
         frappe.log_error(frappe.get_traceback(), f"Failed to get shipping address for Sales Order {sales_order.name}")
     
+    
+    email_template_name = email_template  # Use a new variable for the template name
 
 
     # Check if the custom email template exists
-    if frappe.db.exists("Email Template", email_template):
-        email_template = frappe.get_doc("Email Template", email_template)
+    if frappe.db.exists("Email Template", email_template_name):
+        email_template = frappe.get_doc("Email Template", email_template_name)
     # else if the general email template exists by remove 'custom-'
-    if frappe.db.exists("Email Template",  email_template.replace('custom-', '', 1)):
-        email_template = frappe.get_doc("Email Template",  email_template.replace('custom-', '', 1))
+    elif frappe.db.exists("Email Template",  email_template_name.replace('custom-', '', 1)):
+        email_template = frappe.get_doc("Email Template",  email_template_name.replace('custom-', '', 1))
     else:
         default_email_templates = frappe.get_all("Email Template", limit=1)
         if not default_email_templates:
