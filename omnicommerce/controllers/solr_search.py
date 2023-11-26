@@ -35,6 +35,7 @@ def catalogue(args=None):
     whishlist = frappe.local.request.args.get('wishlist') or None
     category_detail = frappe.local.request.args.get('category_detail') or None
     skus = frappe.local.request.args.get('sku') or None
+    promo_code = frappe.local.request.args.get('promo_code') or None
     wishlist_items = []  # Initialize wishlist_items variable
 
     #we just search for whishlist
@@ -85,6 +86,9 @@ def catalogue(args=None):
     max_discount_percent= frappe.local.request.args.get('max_discount_percent')
     if max_discount_percent and float(max_discount_percent) > 0:
         query += f' AND discount_percent:[* TO {max_discount_percent}]'
+
+    if promo_code:
+        query += f' AND promo_code:{promo_code}'
 
     order_by = frappe.local.request.args.get('order_by')
 
