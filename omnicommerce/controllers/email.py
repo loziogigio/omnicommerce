@@ -3,6 +3,7 @@ from frappe import _
 from omnicommerce.controllers.pdf import get_pdf_data
 from omnicommerce.controllers.pdf import get_default_letterhead
 from frappe.utils.file_manager import save_file
+from mymb_ecommerce.settings.configurations import Configurations
 
 
 @frappe.whitelist(allow_guest=True)
@@ -206,8 +207,10 @@ def request_form(**kwargs):
     context_string = ''
     if query_args:
         context_string += '<br/>'.join([f'{key}={value}' for key, value in query_args.items()]) + '<br/>'
-        
-    recipient = kwargs.get('recipient', '')
+
+    config = Configurations()   
+    email_b2b = config.get_email_b2b()
+    recipient = kwargs.get('recipient', email_b2b)
     
     recipients = [recipient]
 
@@ -230,10 +233,11 @@ def request_form(**kwargs):
         )
 
         # Optionally, you can delete the saved files after sending the email if you no longer need them.
-        for file_data.file_url in attachments_to_send:
-            file_doc = frappe.get_doc("File", {"file_url": file_data.file_url})
-            file_doc.flags.ignore_permissions = True
-            file_doc.delete()
+        if isinstance(attachments_to_send, list):
+            for file_data.file_url in attachments_to_send:
+                file_doc = frappe.get_doc("File", {"file_url": file_data.file_url})
+                file_doc.flags.ignore_permissions = True
+                file_doc.delete()
 
         return {"status": "Success", "message": "Email sent successfully."}
     except Exception as e:
