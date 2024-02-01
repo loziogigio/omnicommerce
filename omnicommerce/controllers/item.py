@@ -312,14 +312,14 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
     if price_list:
         price = frappe.get_all(
             "Item Price",
-            fields=["price_list_rate", "currency"],
+            fields=["price_list_rate", "currency" ,"uom"],
             filters={"price_list": price_list, "item_code": item_code},
         )
 
         if template_item_code and not price:
             price = frappe.get_all(
                 "Item Price",
-                fields=["price_list_rate", "currency" ],
+                fields=["price_list_rate", "currency" , "uom" ],
                 filters={"price_list": price_list, "item_code": template_item_code},
             )
 
@@ -346,7 +346,7 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
 
             pricing_rule = get_pricing_rule_for_item(pricing_rule_dict)
             price_obj = price[0]
-            price_obj.net_price = price_obj.price_list_rate
+            
             price_obj.is_promo = False
 
             if pricing_rule:
@@ -391,17 +391,27 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
                 )
 
                 uom_conversion_factor = frappe.db.sql(
-                    """select C.conversion_factor
+                    """select C.conversion_factor, I.sales_uom
                     from `tabUOM Conversion Detail` C
                     inner join `tabItem` I on C.parent = I.name and C.uom = I.sales_uom
                     where I.name = %s""",
                     item_code,
                 )
 
-                uom_conversion_factor = uom_conversion_factor[0][0] if uom_conversion_factor else 1
+                # Check if uom_conversion_factor has valid data
+                if uom_conversion_factor and len(uom_conversion_factor) > 0:
+                    conversion_factor = uom_conversion_factor[0][0]
+                    sales_uom = uom_conversion_factor[0][1]
+                else:
+                    conversion_factor = 1
+                    sales_uom = ""
+
                 price_obj["formatted_price_sales_uom"] = fmt_money(
-                    price_obj["price_list_rate"] * uom_conversion_factor, currency=price_obj["currency"]
+                    price_obj["price_list_rate"] * conversion_factor, currency=price_obj["currency"]
                 )
+
+                price_obj["net_price_sales_uom"] = price_obj["price_list_rate"] * conversion_factor
+                price_obj["sales_uom"] = sales_uom
 
                 if not price_obj["price_list_rate"]:
                     price_obj["price_list_rate"] = 0
@@ -412,7 +422,9 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
                 if not price_obj["formatted_price"]:
                     price_obj["formatted_price"], price_obj["formatted_mrp"] = "", ""
 
+            price_obj.net_price = price_obj.net_price_sales_uom
             return price_obj
+            
 
 
 def website_item_on_update(doc, method):
