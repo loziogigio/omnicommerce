@@ -72,7 +72,7 @@ def send_sales_order_confirmation_email(sales_order=None, name=None , attachment
 
 
 @frappe.whitelist(allow_guest=True)
-def send_sales_order_confirmation_email_html(sales_order=None, name=None  , recipients=None , email_template="custom-confirm-sales-order-html" , wire_info=""):
+def send_sales_order_confirmation_email_html(sales_order=None, name=None  , recipients=None , email_template="custom-confirm-sales-order-html" , wire_info="" , bcc=None):
     # Check if neither sales_order nor name is provided
     doc_name = "Sales Order"
     if not sales_order and not name:
@@ -140,9 +140,9 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None  , reci
             recipients=recipients,
             subject=rendered_subject,
             message=rendered_email_content,
-
             reference_doctype=sales_order.doctype,
-            reference_name=sales_order.name
+            reference_name=sales_order.name,
+            bcc=[bcc] if bcc else None  # BCC recipients
         )
 
         return {"status": "Success", "message": "Email sent successfully."}
