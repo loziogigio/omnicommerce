@@ -9,6 +9,7 @@ from frappe.utils import cint, flt, fmt_money
 from slugify import slugify
 from mymb_ecommerce.controllers.solr_crud import delete_document_to_solr
 from erpnext.accounts.doctype.pricing_rule.pricing_rule import get_pricing_rule_for_item
+from mymb_ecommerce.mymb_b2c.settings.configurations import Configurations
 
 
 
@@ -429,6 +430,11 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
 
 def website_item_on_update(doc, method):
     """Hook to handle updates on 'Web Site Item'."""
+    # Check if the item exists in the database
+    config = Configurations()
+    # Ensure all items exist or import missing ones
+    if config.enable_mymb_b2c:
+        return
     
     # Check if the item is published
     if doc.published == True:

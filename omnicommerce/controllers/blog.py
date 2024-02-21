@@ -25,7 +25,13 @@ def get_blog_post(limit=10, page=1, filters=None):
 
         start = (page - 1) * int(limit) if limit else 0
 
-        filtered_blog_post = frappe.get_all("Blog Post", fields=["*"], filters=valid_filters, limit=limit, start=start)
+        filtered_blog_post = frappe.get_all("Blog Post", 
+                                            fields=["*"], 
+                                            filters=valid_filters, 
+                                            limit=limit, 
+                                            start=start,
+                                            order_by='creation desc'  # or 'publish_date desc'
+                                           )
         
 
         result = {
