@@ -7,17 +7,31 @@ def apply_coupon_code(quotation_name, applied_code, applied_referral_sales_partn
         if not applied_code:
             frappe.throw(_("Please enter a coupon code"))
 
-        coupon_list = frappe.get_all("Coupon Code", filters={"coupon_code": applied_code})
+        coupon_list = frappe.get_all("Coupon Code", filters={"coupon_code": applied_code}, fields=["name", "custom_maximum_use_per_email" , "description"])
         if not coupon_list:
             frappe.throw(_("Please enter a valid coupon code"))
 
-        coupon_name = coupon_list[0].name
+        coupon = coupon_list[0]
+        coupon_description = coupon.get("description", "")
 
         from erpnext.accounts.doctype.pricing_rule.utils import validate_coupon_code
 
-        validate_coupon_code(coupon_name)
+        validate_coupon_code(coupon["name"])
+
         quotation = frappe.get_doc("Quotation", quotation_name)
-        quotation.coupon_code = coupon_name
+
+        # Implement logic to check coupon usage limit per email
+        if coupon.get("custom_maximum_use_per_email", 0) > 0:
+            past_usage_count = frappe.db.count("Sales Order", filters={
+                "recipient_email": quotation.recipient_email,  
+                "coupon_code": coupon["name"],
+                "docstatus": 1  # Only consider submitted sales orders
+            })
+
+            if past_usage_count >= coupon["custom_maximum_use_per_email"]:
+                frappe.throw(_("This coupon code has been used the maximum number of times allowed."))
+
+        quotation.coupon_code = coupon["name"]
         quotation.flags.ignore_permissions = True
         quotation.save()
 
@@ -31,15 +45,23 @@ def apply_coupon_code(quotation_name, applied_code, applied_referral_sales_partn
                 quotation.flags.ignore_permissions = True
                 quotation.save()
 
-        return quotation
+
+        # Convert quotation to a dictionary
+        quotation_dict = quotation.as_dict()
+        # Add coupon_description to the dictionary
+        quotation_dict["coupon_description"] = coupon_description
+
+        # Return the modified dictionary
+        return quotation_dict
 
     except Exception as e:
-        # Convert the error to a string and log the error
+        # Log the error
         frappe.log_error(str(e), "Error applying coupon code")
 
-        # Return a formatted API response
+        # Return an error response
         response = {
             "status": "error",
-            "message": str(e)
+            "message": str(e),
+            "coupon_description":coupon_description
         }
         return response

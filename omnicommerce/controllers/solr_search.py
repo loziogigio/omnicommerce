@@ -17,80 +17,116 @@ jwt_manager = JWTManager(secret_key=JWT_SECRET_KEY)
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])
 def shop(args=None):
+    # Call the catalogue function with the given arguments
     return catalogue(args)
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])
 def catalogue(args=None):
-    config = Configurations()
-    solr_instance = config.get_solr_instance()
-
     # Get the "start" and "per_page" parameters from the query string
-    per_page = int(frappe.local.request.args.get('per_page', 12) or 12 ) 
-    page = int(frappe.local.request.args.get('page') or 1)
+    args = args or {}  # If args is None, make it an empty dictionary
+
+    request_args = {key: frappe.local.request.args.get(key) for key in frappe.local.request.args}
+
+    # Merge dictionaries with args taking precedence
+    unified_args = {**request_args, **args}
+
+    per_page_value = unified_args.get('per_page', 12)
+    per_page = int(per_page_value) if per_page_value else 1
+    
+    page_value = unified_args.get('page', 1)
+    page = int(page_value) if page_value else 1
     page = page - 1 if page > 0 else 0
+
+    text = unified_args.get('search_term', '*')
+    groups = unified_args.get('category')
+    features = unified_args.get('features')
+    wishlist = unified_args.get('wishlist')
+    family_code = unified_args.get('family_code')
+    family_name = unified_args.get('family_name')
+    home = unified_args.get('home' , False)
+    skus = unified_args.get('skus')
+    is_in_stock = unified_args.get('is_in_stock' , False)
+    category_detail = unified_args.get('category_detail')
+    promo_code = unified_args.get('promo_code')
+
+
     start = page*per_page
-    text = frappe.local.request.args.get('search_term') or '*'
-    groups = frappe.local.request.args.get('category') or None
-    features = frappe.local.request.args.get('features') or None
-    whishlist = frappe.local.request.args.get('wishlist') or None
-    category_detail = frappe.local.request.args.get('category_detail') or None
-    skus = frappe.local.request.args.get('sku') or None
-    promo_code = frappe.local.request.args.get('promo_code') or None
+    if text=="":
+        text="*"
+
+    if home:
+        label_to_search = "home"
+        url_value = frappe.db.get_value('B2C Menu', {'label': label_to_search}, 'url')
+        
+        if url_value:
+            # Split the URL at the question mark to get the query parameters
+            query_params = urlparse(url_value).query
+            # Convert the query parameters into a dictionary
+            args_dict = {k: v[0] for k, v in parse_qs(query_params).items()}
+            args_dict["home"] = False            
+             
+            return  catalogue(args_dict)
+        else:
+            query = f'text:{text}'
+
+
+        
+
     wishlist_items = []  # Initialize wishlist_items variable
 
     #we just search for whishlist
-    if whishlist:
+    if wishlist:
         JWTManager.verify_jwt_in_request()
         wishlist_items = get_from_wishlist(user=frappe.local.jwt_payload['email'])
-    
-    
 
     if wishlist_items:
         item_codes = [item['item_code'] for item in wishlist_items]
         query = f'text:{text} AND ({" OR ".join([f"sku:{code}" for code in item_codes])})'
     else:
-        query = f'text:{text}'
+        query = f'text:{text} '
 
+    #search item by code
     if skus:
-        sku_list = skus.split(';')
-        sku_queries = [f'sku:{quote(sku)}' for sku in sku_list]
-        query += f' AND ({" OR ".join(sku_queries)})'
-
+        skus_array = skus.split(";")
+        query = f'text:{text} AND ({" OR ".join([f"sku:{sku}" for sku in skus_array])})'
 
     # Check if min_price is provided in the query string and add it to the query if it is
-    min_price = frappe.local.request.args.get('min_price')
+    min_price = unified_args.get('min_price')
     if min_price and float(min_price) > 0:
         query += f' AND net_price_with_vat:[{min_price} TO *]'
 
     # Check if max_price is provided in the query string and add it to the query if it is
-    max_price = frappe.local.request.args.get('max_price')
+    max_price = unified_args.get('max_price')
     if max_price and float(max_price) > 0:
         query += f' AND net_price_with_vat:[* TO {max_price}]'
 
     # Check if min_discount_value is provided in the query string and add it to the query if it is
-    min_discount_value = frappe.local.request.args.get('min_discount_value')
+    min_discount_value = unified_args.get('min_discount_value')
     if min_discount_value and float(min_discount_value) > 0:
         query += f' AND discount_value:[{min_discount_value} TO *]'
 
     # Check if max_discount_value is provided in the query string and add it to the query if it is
-    max_discount_value= frappe.local.request.args.get('max_discount_value')
+    max_discount_value= unified_args.get('max_discount_value')
     if max_discount_value and float(max_discount_value) > 0:
         query += f' AND discount_value:[* TO {max_discount_value}]'
 
     # Check if min_discount_percent is provided in the query string and add it to the query if it is
-    min_discount_percent = frappe.local.request.args.get('min_discount_percent')
+    min_discount_percent = unified_args.get('min_discount_percent')
     if min_discount_percent and float(min_discount_percent) > 0:
         query += f' AND discount_percent:[{min_discount_percent} TO *]'
 
     # Check if max_discount_percent is provided in the query string and add it to the query if it is
-    max_discount_percent= frappe.local.request.args.get('max_discount_percent')
+    max_discount_percent= unified_args.get('max_discount_percent')
     if max_discount_percent and float(max_discount_percent) > 0:
         query += f' AND discount_percent:[* TO {max_discount_percent}]'
-
+    
     if promo_code:
-        query += f' AND promo_code:{promo_code}'
+        query += f' AND promo_code:{promo_code} '
 
-    order_by = frappe.local.request.args.get('order_by')
+    if is_in_stock:
+        query += f' AND availability:[1 TO *]'
+
+    order_by = unified_args.get('order_by')
 
     # Construct the Solr search parameters
     search_params = {
@@ -104,6 +140,11 @@ def catalogue(args=None):
     if groups:
        search_params["groups"]=groups 
     
+    if family_code:
+       search_params["family_code"]=family_code 
+    if family_name:
+       search_params["family_name"]=family_name 
+
     if features:
         search_params["features"]=features
 
@@ -112,8 +153,25 @@ def catalogue(args=None):
         search_params['sort'] = 'net_price_with_vat asc'
     elif order_by == 'price-desc':
         search_params['sort'] = 'net_price_with_vat desc'
+    
+    order_by_creation_at = unified_args.get('order_by_creation_at')
+    if order_by_creation_at == 'asc':
+        search_params['sort'] = 'created_at asc'
+    elif order_by_creation_at == 'desc':
+        search_params['sort'] = 'created_at desc'
+
+    order_by_updated_at = unified_args.get('order_by_updated_at')
+    if order_by_updated_at == 'asc':
+        search_params['sort'] = 'updated_at asc'
+    elif order_by_updated_at == 'desc':
+        search_params['sort'] = 'updated_at desc'
+
+    if unified_args.get('is_random'):
+        search_params['is_random'] = unified_args.get('is_random')
 
     # Get the Solr instance from the Configurations class
+    config = Configurations()
+    solr_instance = config.get_solr_instance()
     solr = solr_instance
 
     # Execute the search and get the results
@@ -166,7 +224,6 @@ def catalogue(args=None):
         "category_tree": get_category_tree(groups , search_results)
     }
     return response
-
 def get_category_tree(groups, search_results_mapped):
     if search_results_mapped and len(search_results_mapped) > 0 and groups is not None and len(groups) > 0:
         item = search_results_mapped[0]
@@ -229,7 +286,8 @@ def map_solr_response_b2c(search_results ):
         'availability':'stock',
         'images': 'images',
         'slug':'slug',
-        'family_code':'family_code'
+        'family_code':'family_code',
+        'family_name':'family_name'
     }
 
 
@@ -378,9 +436,10 @@ def products():
     # Extract the product details from the Solr result
     product = map_solr_response_b2c([dict(single_result)])[0]
 
+    #Family name is unique for the group
     args = frappe._dict()
-    if 'family_code' in product:
-        args.family_code = product.get('family_code')
+    if 'family_name' in product:
+        args.family_name = product.get('family_name')
 
     relatedProducts = catalogue(args)
 
