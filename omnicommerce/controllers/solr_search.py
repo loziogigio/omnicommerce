@@ -6,6 +6,8 @@ from mymb_ecommerce.mymb_ecommerce.item_feature import get_features_by_item_name
 from mymb_ecommerce.mymb_ecommerce.item_review import get_item_reviews
 from mymb_ecommerce.mymb_ecommerce.wishlist import get_from_wishlist
 from mymb_ecommerce.utils.media import get_website_domain
+from omnicommerce.controllers.item_best_selling import get_top_items
+
 import frappe
 from frappe import _
 
@@ -443,6 +445,20 @@ def products():
 
     relatedProducts = catalogue(args)
 
+    #Best selling item in the last 30 days
+    args_best_selling_products = frappe._dict()
+    get_top_items_code = get_top_items(30, 30) 
+    skus_list = [item['item_code'] for item in get_top_items_code]
+    skus_string = ';'.join(skus_list)
+    args_best_selling_products.skus = skus_string
+    bestSellingProducts= catalogue(args_best_selling_products)
+
+    #Item in discount
+    args_featured_products = frappe._dict()
+    args_featured_products.min_discount_value = 1
+    args_featured_products.is_random = True
+    featuredProducts = catalogue(args_featured_products)
+
     product["features"] = get_features_by_item_name(product["sku"])
     product['item_reviews'] = get_item_reviews(product["sku"])
 
@@ -494,8 +510,8 @@ def products():
     response =  {
         'product': product,
         'relatedProducts': relatedProducts['products'],
-        'featuredProducts': relatedProducts['products'],
-        'bestSellingProducts': relatedProducts['products'],
+        'featuredProducts': featuredProducts['products'],
+        'bestSellingProducts': bestSellingProducts['products'],
         'latestProducts': relatedProducts['products'],
         'topRatedProducts': relatedProducts['products'],
         'categories':categories
