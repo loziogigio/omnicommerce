@@ -22,13 +22,13 @@ def get_top_items(days_back=30, top_limit=30):
     end_date = datetime.today()
     start_date = end_date - timedelta(days=days_back)
 
-    # Query for top items in submitted Sales Orders within the date range
+    # Query for top items in submitted Sales Orders within the date range, by the number of times they appear
     query = """
-    SELECT item_code, SUM(qty) AS total_qty
+    SELECT item_code, COUNT(item_code) AS times_ordered
     FROM `tabSales Order Item`
     WHERE docstatus = 1 AND creation BETWEEN %s AND %s
     GROUP BY item_code
-    ORDER BY total_qty DESC
+    ORDER BY times_ordered DESC
     LIMIT %s
     """
     top_items = frappe.db.sql(query, (start_date, end_date, top_limit), as_dict=True)
