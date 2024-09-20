@@ -167,11 +167,14 @@ def request_form(**kwargs):
     
     request_id = kwargs.get('request_id', '')
 
-    email_template="request-form"
+    email_template_name="request-form"
 
+    # Check if the custom email template exists
+    if frappe.db.exists("Email Template", f"custom-{email_template_name}"):
+        email_template = frappe.get_doc("Email Template", f"custom-{email_template_name}")
     # Check if the specified email template exists
-    if frappe.db.exists("Email Template", email_template):
-        email_template = frappe.get_doc("Email Template", email_template)
+    elif frappe.db.exists("Email Template", email_template_name):
+        email_template = frappe.get_doc("Email Template", email_template_name)
     else:
         default_email_templates = frappe.get_all("Email Template", limit=1)
         if not default_email_templates:
@@ -216,12 +219,13 @@ def request_form(**kwargs):
 
     context = {
         "context":context_string,
-        "request_id":request_id
+        "request_id":request_id,
+        "data":kwargs
         # ... you can add other context variables as needed
     }
     try:
         # Render the email content with the context
-        rendered_email_content = frappe.render_template(email_template.response, context)
+        rendered_email_content = frappe.render_template(email_template.response_, context)
         rendered_subject = frappe.render_template(email_template.subject, context)
 
         # Send email
@@ -233,13 +237,13 @@ def request_form(**kwargs):
         )
 
         # Optionally, you can delete the saved files after sending the email if you no longer need them.
-        if isinstance(attachments_to_send, list):
-            for file_data.file_url in attachments_to_send:
-                file_doc = frappe.get_doc("File", {"file_url": file_data.file_url})
-                file_doc.flags.ignore_permissions = True
-                file_doc.delete()
+        # if isinstance(attachments_to_send, list):
+        #     for file_data.file_url in attachments_to_send:
+        #         file_doc = frappe.get_doc("File", {"file_url": file_data.file_url})
+        #         file_doc.flags.ignore_permissions = True
+        #         file_doc.delete()
 
-        return {"status": "Success", "message": "Email sent successfully."}
+        return {"status": "Success", "message": "Email inviata con successo."}
     except Exception as e:
         # Log the error
         frappe.log_error(message=f"Error sending sales order confirmation email for {context}: {str(e)}", title=f"Request Form  Email Error ")

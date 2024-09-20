@@ -3,6 +3,7 @@ from frappe import _
 
 @frappe.whitelist(allow_guest=True)
 def apply_coupon_code(quotation_name, applied_code, applied_referral_sales_partner):
+    coupon_description = ""
     try:
         if not applied_code:
             frappe.throw(_("Please enter a coupon code"))

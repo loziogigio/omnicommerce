@@ -288,6 +288,11 @@ def map_solr_response_b2c(search_results ):
         'availability':'stock',
         'images': 'images',
         'slug':'slug',
+        'group_1':'group_1',
+        'group_2':'group_2',
+        'group_3':'group_3',
+        'group_4':'group_4',
+        'group_5':'group_5',
         'family_code':'family_code',
         'family_name':'family_name'
     }
