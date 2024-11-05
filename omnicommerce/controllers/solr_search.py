@@ -280,6 +280,8 @@ def map_solr_response_b2c(search_results ):
         'id': 'id',
         'sku': 'sku',
         'name': 'name',
+        'short_description': 'short_description',
+        'description': 'description',
         'gross_price_with_vat': 'gross_price',
         'net_price_with_vat': 'net_price',
         'promo_price_with_vat': 'promo_price',
@@ -469,7 +471,7 @@ def products():
 
     # Fetch from the doctype Website Item where item_code=sku
     website_item = frappe.get_value("Website Item", {"item_code": product["sku"]},
-                                   ["web_long_description", "short_description", "name"], as_dict=True)
+                                   ["web_long_description", "short_description", "name" , "website_content"], as_dict=True)
 
     if not website_item:
         frappe.throw(_('Website Item not found for SKU {0}').format(product["sku"]), frappe.DoesNotExistError)
@@ -477,6 +479,7 @@ def products():
     # Update product dictionary with details from Website Item
     product['long_description'] = website_item.get('web_long_description', '')
     product['short_description'] = website_item.get('short_description', '')
+    product['website_content'] = website_item.get('website_content', '')
     product['item_reviews'] = get_item_reviews(product["sku"])
 
     # set categories
