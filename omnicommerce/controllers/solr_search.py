@@ -296,7 +296,12 @@ def map_solr_response_b2c(search_results ):
         'group_4':'group_4',
         'group_5':'group_5',
         'family_code':'family_code',
-        'family_name':'family_name'
+        'family_name':'family_name',
+        'uom': 'uom',
+        'sales_uom': 'sales_uom',
+        'tax_rate':'tax_rate',
+        'gross_price_uom':'gross_price_uom',
+        'gross_price_uom_with_vat':'gross_price_uom_with_vat'
     }
 
 

@@ -275,6 +275,7 @@ def transform_to_solr_document(item):
         "synonymous_nostem": item.get('synonymous_nostem', None),
 
         # Pricing Fields
+        "tax_rate": prices.get('tax_rate', 0),
         "uom":uom,
         "sales_uom":sales_uom,
         "gross_price": round(gross_price, 2),
@@ -424,7 +425,7 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
     )
 
     conversion_factor = 1
-    sales_uom = ""
+    sales_uom = price_obj.uom
 
     if uom_conversion_factor and len(uom_conversion_factor) > 0:
         conversion_factor = uom_conversion_factor[0][0]
@@ -437,6 +438,7 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
     # Step 5: Return All Price Data Properly
     return {
         # Initial Base Prices
+        "tax_rate":tax_rate,
         "initial_price_excl_tax": flt(base_price, 2),
         "initial_price_incl_tax": flt(base_price_with_tax, 2),
         "initial_tax_amount": flt(tax_amount, 2),

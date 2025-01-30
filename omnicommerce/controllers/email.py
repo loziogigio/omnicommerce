@@ -4,7 +4,8 @@ from omnicommerce.controllers.pdf import get_pdf_data
 from omnicommerce.controllers.pdf import get_default_letterhead
 from frappe.utils.file_manager import save_file
 from mymb_ecommerce.settings.configurations import Configurations
-
+from omnicommerce.controllers.solr_search import catalogue
+from mymb_ecommerce.mymb_b2c.settings.configurations import Configurations as ConfigurationsB2C
 
 @frappe.whitelist(allow_guest=True)
 def send_sales_order_confirmation_email(sales_order=None, name=None , attachment=True , recipients=None , email_template="confirm-sales-order" , wire_info=""):
@@ -130,6 +131,27 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None  , reci
 
         # ... you can add other context variables as needed
     }
+
+
+
+    config_b2c = ConfigurationsB2C()
+    extra_info = None
+    if not config_b2c.enable_mymb_b2c:
+        # Extract item codes from sales_order.items
+        skus = ";".join([item.item_code for item in sales_order.items if item.item_code])
+        # Retrieve catalogue information if skus exist
+        if skus:
+            extra_info = catalogue({"skus": skus , "per_page":999})
+            context = {
+                **sales_order.as_dict(),
+                "sales_order":sales_order,
+                "wire_info":wire_info,
+                "billing_address":billing_address,
+                "shipping_address":shipping_address,
+                "extra_info":extra_info
+                # ... you can add other context variables as needed
+            }
+
     try:
         # Render the email content with the context
         rendered_email_content = frappe.render_template(email_template.response_, context)
