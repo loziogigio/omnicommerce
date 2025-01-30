@@ -336,6 +336,7 @@ def map_google_item(product, b2c_url):
     uodated_categories = get_google_category(group_1) 
 
     stock = product.get("stock", "0")
+    stock= 1
     stock_text = "in_stock" if stock > 0 else "out_of_stock"
 
     if product.get("is_sale"):

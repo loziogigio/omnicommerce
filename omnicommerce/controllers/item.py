@@ -194,17 +194,26 @@ def transform_to_solr_document(item):
     prices = item.get('prices') or {}
 
     # Handle the case where prices is NoneType
-    if item.get('prices') is not None:
-        prices = item['prices']
-        net_price = prices.get('net_price', 0)
-        net_price_with_vat = prices.get('net_price_with_vat', net_price)
-        gross_price = prices.get('gross_price', net_price)
-        gross_price_with_vat = prices.get('gross_price_with_vat', net_price)
-    else:
-        net_price = net_price_with_vat = gross_price = gross_price_with_vat = 0
+    prices = item.get('prices') or {}
+
+    uom = prices.get('uom', "Piece")
+    sales_uom = prices.get('sales_uom', uom)
+
+    # Handle missing prices safely
+    net_price = prices.get('initial_price_excl_tax', 0)
+    net_price_with_vat = prices.get('initial_price_incl_tax', net_price)
+
+
+    gross_price_uom = prices.get('price_after_pricing_rule_excl_tax', net_price)
+    gross_price_uom_with_vat = prices.get('price_after_pricing_rule_incl_tax', net_price_with_vat)
+
+    gross_price = prices.get('price_after_pricing_rule_sales_uom_excl_tax', gross_price_uom)
+    gross_price_with_vat = prices.get('price_after_pricing_rule_sales_uom_incl_tax', gross_price_uom_with_vat)
 
 
     stock_qty = item.get('product_info', {}).get('stock_qty', 0)
+
+
 
     if isinstance(stock_qty, (float, int)):
         if net_price > 0 and stock_qty == 0:
@@ -225,17 +234,13 @@ def transform_to_solr_document(item):
 
 
     promo_price = promo_price_with_vat = discount_value = discount_percent = discount_type = None
-    if is_promo and gross_price_with_vat and prices.get('price_list_rate') and ( prices.get('price_list_rate')!= net_price):
-        promo_price = prices.get('price_list_rate', 0)
-        promo_price_with_vat = promo_price
-        if prices.get('discount_amount'):
-            discount_type = "discount_amount"
-        if prices.get('discount_percent'):
-            discount_type = "discount_percent"
-        if prices.get('formatted_discount_rate'):
-            discount_type = "discount_rate"
-        discount_value = round(gross_price_with_vat - promo_price_with_vat, 2)
-        discount_percent = int((1 - promo_price_with_vat / gross_price_with_vat) * 100) if gross_price_with_vat else None
+
+    # Ensure promo pricing logic is correctly applied
+    if is_promo and gross_price_with_vat and prices.get('price_after_pricing_rule_excl_tax') and (prices.get('price_after_pricing_rule_excl_tax') != net_price):
+        promo_price = gross_price
+        promo_price_with_vat = gross_price_with_vat
+        discount_value = prices.get('discount_amount', 0)
+        discount_percent = prices.get('discount_percent', 0)
     else:
         is_promo = False
             
@@ -268,23 +273,33 @@ def transform_to_solr_document(item):
         "slug": slug,
         "synonymous": item.get('synonymous', None),
         "synonymous_nostem": item.get('synonymous_nostem', None),
-        "gross_price": gross_price,
-        "gross_price_with_vat": gross_price_with_vat,
-        "net_price": net_price,
-        "net_price_with_vat":net_price_with_vat ,
+
+        # Pricing Fields
+        "uom":uom,
+        "sales_uom":sales_uom,
+        "gross_price": round(gross_price, 2),
+        "gross_price_with_vat": round(gross_price_with_vat, 2),
+        "gross_price_uom": round(gross_price, 2),
+        "gross_price_uom_with_vat": round(gross_price_with_vat, 2),
+        "net_price": round(net_price, 2),
+        "net_price_with_vat": round(net_price_with_vat, 2),
+
+        # Promo Fields
         "promo_code": prices.get('promo_code', None),
-        "promo_price": promo_price,
-        "promo_price_with_vat": promo_price_with_vat,
+        "promo_price": round(promo_price, 2) if promo_price else None,
+        "promo_price_with_vat": round(promo_price_with_vat, 2) if promo_price_with_vat else None,
         "is_promo": is_promo,
         "is_best_promo": is_best_promo,
         "promo_title": prices.get('promo_title', None),
         "start_promo_date": start_promo_date,
         "end_promo_date": end_promo_date,
+
+        # Discount Details
         "discount": prices.get('discount', [None]*6),
         "discount_extra": prices.get('discount_extra', [None]*3),
         "pricelist_type": prices.get('pricelist_type', None),
         "pricelist_code": prices.get('pricelist_code', None),
-        "discount_type": discount_type
+        "discount_type":  prices.get('discount_type', None)
     }
 
     # Assuming 'item' is a dictionary that contains the 'groups' sub-dictionary
@@ -305,127 +320,156 @@ def transform_to_solr_document(item):
 
     return solr_document
 
+
+
 def get_price(item_code, price_list, customer_group, company, qty=1):
     from webshop.webshop.shopping_cart.cart import get_party
 
     template_item_code = frappe.db.get_value("Item", item_code, "variant_of")
 
-    if price_list:
+    # Step 1: Fetch Base Price (Without Pricing Rule)
+    price = frappe.get_all(
+        "Item Price",
+        fields=["price_list_rate", "currency", "uom"],
+        filters={"price_list": price_list, "item_code": item_code},
+    )
+
+    if template_item_code and not price:
         price = frappe.get_all(
             "Item Price",
-            fields=["price_list_rate", "currency" ,"uom"],
-            filters={"price_list": price_list, "item_code": item_code},
+            fields=["price_list_rate", "currency", "uom"],
+            filters={"price_list": price_list, "item_code": template_item_code},
         )
 
-        if template_item_code and not price:
-            price = frappe.get_all(
-                "Item Price",
-                fields=["price_list_rate", "currency" , "uom" ],
-                filters={"price_list": price_list, "item_code": template_item_code},
-            )
+    if not price:
+        return None  # No price found
 
-        if price:
-            party = get_party()
-            pricing_rule_dict = frappe._dict(
-                {
-                    "item_code": item_code,
-                    "qty": qty,
-                    "stock_qty": qty,
-                    "transaction_type": "selling",
-                    "price_list": price_list,
-                    "customer_group": customer_group,
-                    "company": company,
-                    "conversion_rate": 1,
-                    "for_shopping_cart": True,
-                    "currency": frappe.db.get_value("Price List", price_list, "currency"),
-                    "doctype": "Quotation",
-                }
-            )
+    price_obj = price[0]
 
-            if party and party.doctype == "Customer":
-                pricing_rule_dict.update({"customer": party.name})
+    # Store Initial Base Price
+    base_price = flt(price_obj.price_list_rate)
 
-            pricing_rule = get_pricing_rule_for_item(pricing_rule_dict)
-            price_obj = price[0]
-            
-            price_obj.is_promo = False
+    # Step 2: Fetch Applicable Tax
+    tax_template = frappe.db.get_value(
+        "Sales Taxes and Charges Template",
+        {"company": company, "is_default": 1},
+        "name"
+    )
 
-            if pricing_rule:
-                # price without any rules applied
-                mrp = price_obj.price_list_rate or 0
+    tax_rate = 0
+    if tax_template:
+        tax_rate = frappe.db.get_value(
+            "Sales Taxes and Charges",
+            {"parent": tax_template, "charge_type": "On Net Total"},
+            "rate"
+        ) or 0
 
-                if pricing_rule.pricing_rule_for == "Discount Percentage":
-                    price_obj.discount_percent = pricing_rule.discount_percentage
-                    price_obj.formatted_discount_percent = str(flt(pricing_rule.discount_percentage, 0)) + "%"
-                    price_obj.price_list_rate = flt(
-                        price_obj.price_list_rate * (1.0 - (flt(pricing_rule.discount_percentage) / 100.0))
-                    )
-                    price_obj.is_promo = True
+    tax_amount = (base_price * flt(tax_rate)) / 100.0
+    base_price_with_tax = base_price + tax_amount
 
-                if pricing_rule.pricing_rule_for == "Rate":
-                    rate_discount = flt(mrp) - flt(pricing_rule.price_list_rate)
-                    if rate_discount > 0:
-                        price_obj.formatted_discount_rate = fmt_money(rate_discount, currency=price_obj["currency"])
-                        price_obj.is_promo = True
-                    price_obj.price_list_rate = pricing_rule.price_list_rate or 0
+    # Step 3: Apply Pricing Rule
+    party = get_party()
+    pricing_rule_dict = frappe._dict({
+        "item_code": item_code,
+        "qty": qty,
+        "stock_qty": qty,
+        "transaction_type": "selling",
+        "price_list": price_list,
+        "customer_group": customer_group,
+        "company": company,
+        "conversion_rate": 1,
+        "for_shopping_cart": True,
+        "currency": price_obj["currency"],
+        "doctype": "Quotation",
+    })
 
-                if pricing_rule.pricing_rule_for == "Discount Amount":
-                    price_obj.discount_amount = pricing_rule.discount_amount
-                    if price_obj.discount_amount > 0:
-                        price_obj.is_promo=True
-                    price_obj.price_list_rate = flt(mrp - price_obj.discount_amount)
+    if party and party.doctype == "Customer":
+        pricing_rule_dict.update({"customer": party.name})
 
-            if price_obj:
-                price_obj["formatted_price"] = fmt_money(
-                    price_obj["price_list_rate"], currency=price_obj["currency"]
-                )
-                if mrp != price_obj["price_list_rate"]:
-                    price_obj["formatted_mrp"] = fmt_money(mrp, currency=price_obj["currency"])
+    pricing_rule = get_pricing_rule_for_item(pricing_rule_dict)
 
-                price_obj["currency_symbol"] = (
-                    not cint(frappe.db.get_default("hide_currency_symbol"))
-                    and (
-                        frappe.db.get_value("Currency", price_obj.currency, "symbol", cache=True)
-                        or price_obj.currency
-                    )
-                    or ""
-                )
+    price_after_pricing_rule = base_price  # Default to base price
+    discount_percent = 0
+    discount_amount = 0
+    is_promo = False
+    discount_type = None
+    if pricing_rule:
+        if pricing_rule.pricing_rule_for == "Discount Percentage":
+            discount_type = "discount_percentage"
+            discount_percent = pricing_rule.discount_percentage
+            discount_amount = (base_price * discount_percent) / 100
+            price_after_pricing_rule = base_price - discount_amount
+            is_promo= True
+        elif pricing_rule.pricing_rule_for == "Rate":
+            discount_type = "discount_rate"
+            price_after_pricing_rule = pricing_rule.price_list_rate or base_price
+            is_promo= True
+        elif pricing_rule.pricing_rule_for == "Discount Amount":
+            discount_type = "discount_amount"
+            discount_amount = pricing_rule.discount_amount
+            price_after_pricing_rule = max(0, base_price - discount_amount)
+            is_promo= True
 
-                uom_conversion_factor = frappe.db.sql(
-                    """select C.conversion_factor, I.sales_uom
-                    from `tabUOM Conversion Detail` C
-                    inner join `tabItem` I on C.parent = I.name and C.uom = I.sales_uom
-                    where I.name = %s""",
-                    item_code,
-                )
+    # Apply tax after pricing rule
+    tax_amount_after_rule = (price_after_pricing_rule * flt(tax_rate)) / 100.0
+    final_price_with_tax = price_after_pricing_rule + tax_amount_after_rule
 
-                # Check if uom_conversion_factor has valid data
-                if uom_conversion_factor and len(uom_conversion_factor) > 0:
-                    conversion_factor = uom_conversion_factor[0][0]
-                    sales_uom = uom_conversion_factor[0][1]
-                else:
-                    conversion_factor = 1
-                    sales_uom = ""
+    # Step 4: Convert Price Based on UOM
+    uom_conversion_factor = frappe.db.sql(
+        """SELECT C.conversion_factor, I.sales_uom
+        FROM `tabUOM Conversion Detail` C
+        INNER JOIN `tabItem` I ON C.parent = I.name AND C.uom = I.sales_uom
+        WHERE I.name = %s""",
+        item_code,
+    )
 
-                price_obj["formatted_price_sales_uom"] = fmt_money(
-                    price_obj["price_list_rate"] * conversion_factor, currency=price_obj["currency"]
-                )
+    conversion_factor = 1
+    sales_uom = ""
 
-                price_obj["net_price_sales_uom"] = price_obj["price_list_rate"] * conversion_factor
-                price_obj["sales_uom"] = sales_uom
+    if uom_conversion_factor and len(uom_conversion_factor) > 0:
+        conversion_factor = uom_conversion_factor[0][0]
+        sales_uom = uom_conversion_factor[0][1]
 
-                if not price_obj["price_list_rate"]:
-                    price_obj["price_list_rate"] = 0
+    price_sales_uom = price_after_pricing_rule * conversion_factor
+    price_sales_uom_with_tax = final_price_with_tax * conversion_factor
+    tax_sales_uom = tax_amount_after_rule * conversion_factor
 
-                if not price_obj["currency"]:
-                    price_obj["currency"] = ""
+    # Step 5: Return All Price Data Properly
+    return {
+        # Initial Base Prices
+        "initial_price_excl_tax": flt(base_price, 2),
+        "initial_price_incl_tax": flt(base_price_with_tax, 2),
+        "initial_tax_amount": flt(tax_amount, 2),
+        "is_promo":is_promo,
+        "discount_type":discount_type,
+        "uom": frappe._(price_obj.uom),
 
-                if not price_obj["formatted_price"]:
-                    price_obj["formatted_price"], price_obj["formatted_mrp"] = "", ""
+        # Pricing Rule Discount Information
+        "pricing_rule_applied": True if pricing_rule else False,
+        "discount_percent": flt(discount_percent, 2),
+        "discount_amount": flt(discount_amount, 2),
+        "price_after_pricing_rule_excl_tax": flt(price_after_pricing_rule, 2),
+        "price_after_pricing_rule_incl_tax": flt(final_price_with_tax, 2),
+        "tax_amount_after_pricing_rule": flt(tax_amount_after_rule, 2),
 
-            price_obj.net_price = price_obj.net_price_sales_uom
-            return price_obj
-            
+        # UOM-Based Prices
+        "sales_uom": sales_uom,
+        "price_after_pricing_rule_sales_uom_excl_tax": flt(price_sales_uom, 2),
+        "price_after_pricing_rule_sales_uom_incl_tax": flt(price_sales_uom_with_tax, 2),
+        "tax_after_pricing_rule_sales_uom": flt(tax_sales_uom, 2),
+
+        # Currency and Formatting
+        "currency": price_obj["currency"],
+        "formatted_initial_price_excl_tax": fmt_money(base_price, currency=price_obj["currency"]),
+        "formatted_initial_price_incl_tax": fmt_money(base_price_with_tax, currency=price_obj["currency"]),
+        "formatted_price_after_pricing_rule_excl_tax": fmt_money(price_after_pricing_rule, currency=price_obj["currency"]),
+        "formatted_price_after_pricing_rule_incl_tax": fmt_money(final_price_with_tax, currency=price_obj["currency"]),
+        "formatted_price_after_pricing_rule_sales_uom": fmt_money(price_sales_uom, currency=price_obj["currency"]),
+        "formatted_final_price_sales_uom_with_tax": fmt_money(price_sales_uom_with_tax, currency=price_obj["currency"]),
+        "formatted_discount_amount": fmt_money(discount_amount, currency=price_obj["currency"]),
+        "formatted_discount_percent": f"{discount_percent:.2f}%"
+
+    }
 
 
 def website_item_on_update(doc, method):
