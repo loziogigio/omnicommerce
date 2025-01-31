@@ -200,15 +200,18 @@ def transform_to_solr_document(item):
     sales_uom = prices.get('sales_uom', uom)
 
     # Handle missing prices safely
-    net_price = prices.get('initial_price_excl_tax', 0)
-    net_price_with_vat = prices.get('initial_price_incl_tax', net_price)
+    net_price = prices.get('price_after_pricing_rule_sales_uom_excl_tax', 0)
+    net_price_with_vat = prices.get('price_after_pricing_rule_sales_uom_incl_tax', net_price)
+
+    net_price_uom = prices.get('price_after_pricing_rule_excl_tax', net_price)
+    net_price_uom_with_vat = prices.get('price_after_pricing_rule_incl_tax', net_price_with_vat)
 
 
-    gross_price_uom = prices.get('price_after_pricing_rule_excl_tax', net_price)
-    gross_price_uom_with_vat = prices.get('price_after_pricing_rule_incl_tax', net_price_with_vat)
+    gross_price_uom = prices.get('initial_price_excl_tax', net_price_uom)
+    gross_price_uom_with_vat = prices.get('initial_price_incl_tax', net_price_uom_with_vat)
 
-    gross_price = prices.get('price_after_pricing_rule_sales_uom_excl_tax', gross_price_uom)
-    gross_price_with_vat = prices.get('price_after_pricing_rule_sales_uom_incl_tax', gross_price_uom_with_vat)
+    gross_price = prices.get('initial_price_sales_uom_excl_tax', gross_price_uom)
+    gross_price_with_vat = prices.get('initial_price_sales_uom_incl_tax', gross_price_uom_with_vat)
 
 
     stock_qty = item.get('product_info', {}).get('stock_qty', 0)
@@ -236,9 +239,9 @@ def transform_to_solr_document(item):
     promo_price = promo_price_with_vat = discount_value = discount_percent = discount_type = None
 
     # Ensure promo pricing logic is correctly applied
-    if is_promo and gross_price_with_vat and prices.get('price_after_pricing_rule_excl_tax') and (prices.get('price_after_pricing_rule_excl_tax') != net_price):
-        promo_price = gross_price
-        promo_price_with_vat = gross_price_with_vat
+    if is_promo and net_price_with_vat:
+        promo_price = net_price
+        promo_price_with_vat = net_price_with_vat
         discount_value = prices.get('discount_amount', 0)
         discount_percent = prices.get('discount_percent', 0)
     else:
@@ -277,14 +280,16 @@ def transform_to_solr_document(item):
         # Pricing Fields
         "tax_rate": prices.get('tax_rate', 0),
         "uom":uom,
+        "sales_uom_conversion_factor":prices.get('conversion_factor', 1),
         "sales_uom":sales_uom,
         "gross_price": round(gross_price, 2),
         "gross_price_with_vat": round(gross_price_with_vat, 2),
-        "gross_price_uom": round(gross_price, 2),
-        "gross_price_uom_with_vat": round(gross_price_with_vat, 2),
+        "gross_price_uom": gross_price_uom,
+        "gross_price_uom_with_vat": gross_price_uom_with_vat,
         "net_price": round(net_price, 2),
         "net_price_with_vat": round(net_price_with_vat, 2),
-
+        "net_price_uom": round(net_price_uom, 2),
+        "net_price_uom_with_vat": round(net_price_uom_with_vat, 2),
         # Promo Fields
         "promo_code": prices.get('promo_code', None),
         "promo_price": round(promo_price, 2) if promo_price else None,
@@ -431,6 +436,10 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
         conversion_factor = uom_conversion_factor[0][0]
         sales_uom = uom_conversion_factor[0][1]
 
+    initial_price_sales_uom_excl_tax = base_price * conversion_factor
+    initial_price_sales_uom_incl_tax = base_price_with_tax * conversion_factor
+    initial_sales_uom_tax_amount = tax_amount * conversion_factor
+
     price_sales_uom = price_after_pricing_rule * conversion_factor
     price_sales_uom_with_tax = final_price_with_tax * conversion_factor
     tax_sales_uom = tax_amount_after_rule * conversion_factor
@@ -439,9 +448,15 @@ def get_price(item_code, price_list, customer_group, company, qty=1):
     return {
         # Initial Base Prices
         "tax_rate":tax_rate,
+        "conversion_factor":conversion_factor,
         "initial_price_excl_tax": flt(base_price, 2),
         "initial_price_incl_tax": flt(base_price_with_tax, 2),
         "initial_tax_amount": flt(tax_amount, 2),
+
+        "initial_price_sales_uom_excl_tax": flt(initial_price_sales_uom_excl_tax, 2),
+        "initial_price_sales_uom_incl_tax": flt(initial_price_sales_uom_incl_tax, 2),
+        "initial_sales_uom_tax_amount": flt(initial_sales_uom_tax_amount, 2),
+
         "is_promo":is_promo,
         "discount_type":discount_type,
         "uom": frappe._(price_obj.uom),

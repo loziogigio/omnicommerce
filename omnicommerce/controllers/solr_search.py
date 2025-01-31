@@ -24,10 +24,14 @@ def shop(args=None):
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])
 def catalogue(args=None):
-    # Get the "start" and "per_page" parameters from the query string
-    args = args or {}  # If args is None, make it an empty dictionary
+    # If args is None, make it an empty dictionary
+    args = args or {}
 
-    request_args = {key: frappe.local.request.args.get(key) for key in frappe.local.request.args}
+    # Check if frappe.local.request exists (to avoid errors in background jobs)
+    if hasattr(frappe.local, 'request'):
+        request_args = {key: frappe.local.request.args.get(key) for key in frappe.local.request.args}
+    else:
+        request_args = {}  # No request context in background job
 
     # Merge dictionaries with args taking precedence
     unified_args = {**request_args, **args}
@@ -282,9 +286,6 @@ def map_solr_response_b2c(search_results ):
         'name': 'name',
         'short_description': 'short_description',
         'description': 'description',
-        'gross_price_with_vat': 'gross_price',
-        'net_price_with_vat': 'net_price',
-        'promo_price_with_vat': 'promo_price',
         'name_web':'short_description',
         'is_promo':'is_sale',
         'availability':'stock',
@@ -297,11 +298,23 @@ def map_solr_response_b2c(search_results ):
         'group_5':'group_5',
         'family_code':'family_code',
         'family_name':'family_name',
+
         'uom': 'uom',
+        'sales_uom_conversion_factor': 'sales_uom_conversion_factor',
         'sales_uom': 'sales_uom',
-        'tax_rate':'tax_rate',
-        'gross_price_uom':'gross_price_uom',
-        'gross_price_uom_with_vat':'gross_price_uom_with_vat'
+        'gross_price': 'gross_price',
+        'gross_price_with_vat': 'gross_price_with_vat',
+        'gross_price_uom': 'gross_price_uom',
+        'gross_price_uom_with_vat': 'gross_price_uom_with_vat',
+        'net_price': 'net_price',
+        'net_price_with_vat': 'net_price_with_vat',
+        'net_price_uom': 'net_price_uom',
+        'net_price_uom_with_vat': 'net_price_uom_with_vat',
+        'promo_price': 'promo_price',
+        'promo_price_with_vat': 'promo_price_with_vat',
+        'discount_type': 'discount_type',
+        'discount_value': 'discount_value',
+        'discount_percent': 'discount_percent'
     }
 
 

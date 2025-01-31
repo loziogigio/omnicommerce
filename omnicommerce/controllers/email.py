@@ -141,7 +141,8 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None  , reci
         skus = ";".join([item.item_code for item in sales_order.items if item.item_code])
         # Retrieve catalogue information if skus exist
         if skus:
-            extra_info = catalogue({"skus": skus , "per_page":999})
+            extra_info = catalogue(args={"skus": skus, "per_page": 999})
+
             context = {
                 **sales_order.as_dict(),
                 "sales_order":sales_order,
