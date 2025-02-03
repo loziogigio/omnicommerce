@@ -273,3 +273,48 @@ def request_form(**kwargs):
 
         # Return a response indicating that there was an error
         return {"status": "Failed", "message": f"Error encountered: {str(e)}"}
+
+
+@frappe.whitelist(allow_guest=True)
+def send_generic_email(data={}, email_template_name="generic_email", recipients=None):
+    # Check if recipients are provided; if not, do not send the email.
+    if not recipients:
+        return {"status": "Failed", "message": "No recipients provided. Email not sent."}
+
+    # Attempt to fetch the specified email template.
+    if frappe.db.exists("Email Template", email_template_name):
+        email_template = frappe.get_doc("Email Template", email_template_name)
+    else:
+        # If the specified template doesn't exist, fetch a default one.
+        default_email_templates = frappe.get_all("Email Template", limit=1)
+        if not default_email_templates:
+            return {"status": "Failed", "message": "No email template found."}
+        email_template = frappe.get_doc("Email Template", default_email_templates[0].name)
+
+    # Prepare the context for rendering the template.
+    context = {
+        "data": data,
+        # ... add other context variables as needed.
+    }
+
+    try:
+        # Render the email content and subject using the context.
+        rendered_email_content = frappe.render_template(email_template.response_, context)
+        rendered_subject = frappe.render_template(email_template.subject, context)
+
+        # Send the email.
+        frappe.sendmail(
+            recipients=recipients,
+            subject=rendered_subject,
+            message=rendered_email_content
+        )
+
+        return {"status": "Success", "message": "Email sent successfully."}
+    except Exception as e:
+        # Log any errors encountered while sending the email.
+        frappe.log_error(
+            message=f"Error sending generic email with context {context}: {str(e)}",
+            title="Generic Email Send Error"
+        )
+        return {"status": "Failed", "message": f"Error encountered: {str(e)}"}
+
