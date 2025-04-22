@@ -4,7 +4,9 @@ from omnicommerce.controllers.pdf import get_pdf_data
 from omnicommerce.controllers.pdf import get_default_letterhead
 from frappe.utils.file_manager import save_file
 from mymb_ecommerce.settings.configurations import Configurations
-from omnicommerce.controllers.solr_search import catalogue
+from omnicommerce.controllers.solr_search import catalogue as catalogue_omnicommerce
+from mymb_ecommerce.mymb_b2c.solr_search import catalogue as  catalogue_mymb
+
 from mymb_ecommerce.mymb_b2c.settings.configurations import Configurations as ConfigurationsB2C
 
 @frappe.whitelist(allow_guest=True)
@@ -123,35 +125,28 @@ def send_sales_order_confirmation_email_html(sales_order=None, name=None  , reci
         recipients = [sales_order.recipient_email]   # Assuming 'recipient_email' is the field in Sales Order for customer's email
 
     
-    context = {
-        **sales_order.as_dict(),
-        "wire_info":wire_info,
-        "billing_address":billing_address,
-        "shipping_address":shipping_address
-
-        # ... you can add other context variables as needed
-    }
-
 
 
     config_b2c = ConfigurationsB2C()
     extra_info = None
+    
+    # Extract item codes from sales_order.items
+    skus = ";".join([item.item_code for item in sales_order.items if item.item_code])
+    # Retrieve catalogue information if skus exist
     if not config_b2c.enable_mymb_b2c:
-        # Extract item codes from sales_order.items
-        skus = ";".join([item.item_code for item in sales_order.items if item.item_code])
-        # Retrieve catalogue information if skus exist
-        if skus:
-            extra_info = catalogue(args={"skus": skus, "per_page": 999})
+        extra_info = catalogue_omnicommerce(args={"skus": skus, "per_page": 999})
+    else:
+        extra_info = catalogue_mymb(args={"skus": skus, "per_page": 999})
 
-            context = {
-                **sales_order.as_dict(),
-                "sales_order":sales_order,
-                "wire_info":wire_info,
-                "billing_address":billing_address,
-                "shipping_address":shipping_address,
-                "extra_info":extra_info
-                # ... you can add other context variables as needed
-            }
+    context = {
+        **sales_order.as_dict(),
+        "sales_order":sales_order,
+        "wire_info":wire_info,
+        "billing_address":billing_address,
+        "shipping_address":shipping_address,
+        "extra_info":extra_info
+        # ... you can add other context variables as needed
+    }
 
     try:
         # Render the email content with the context
